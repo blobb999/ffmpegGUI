@@ -12,19 +12,12 @@ import tempfile
 from tqdm import tqdm
 import yt_dlp as youtube_dl
 from change_language import change_language
+from packaging import version
 
 current_version = "v0.0.1-alpha"
 
 def compare_versions(v1, v2):
-    def parse_version(v):
-        parts = re.split(r'[-.]', v)
-        for i, part in enumerate(parts):
-            if part.isdigit():
-                parts[i] = int(part)
-        return parts
-    
-    return parse_version(v1) < parse_version(v2)
-
+    return version.parse(v1) < version.parse(v2)
 
 labels = change_language("de")
 
@@ -40,7 +33,9 @@ def check_for_updates():
             latest_version = latest_version_lines[0]
             changes = "\n".join(latest_version_lines[1:])
 
-        if compare_versions(current_version, latest_version):
+        is_update_needed = compare_versions(current_version, latest_version)
+
+        if is_update_needed:
             update_message = labels["update_available"].format(latest_version=latest_version, changes=changes)
             if messagebox.askyesno(labels["info"], update_message):
                 temp_dir = tempfile.gettempdir()
@@ -66,7 +61,6 @@ def check_for_updates():
             messagebox.showinfo(labels["info"], labels["success"])
     except Exception as e:
         messagebox.showerror(labels["error"], f"{labels['error']}:\n{e}")
-
 
 def update_labels(language):
     global labels
@@ -532,12 +526,12 @@ def check_youtube_dl_and_aria2c():
 def download_youtube_video():
     youtube_url = youtube_url_entry.get()
     if not youtube_url:
-        messagebox.showerror("Fehler", "Bitte geben Sie eine YouTube URL ein.")
+        messagebox.showerror(labels["error"], labels["error_no_youtube_url"])
         return
 
     # Überprüfen, ob eine Twitter-URL oder eine X-URL eingegeben wurde
     if "twitter.com" in youtube_url or "x.com" in youtube_url:
-        messagebox.showinfo("Info", "Eine Twitter-URL wurde erkannt und in das Twitter-URL-Feld verschoben.")
+        messagebox.showinfo(labels["info"], labels["info_twitter_url_moved"])
         twitter_url_entry.delete(0, tk.END)
         twitter_url_entry.insert(0, youtube_url)
         youtube_url_entry.delete(0, tk.END)
@@ -545,7 +539,7 @@ def download_youtube_video():
 
     # Überprüfen, ob eine TikTok-URL eingegeben wurde
     if "tiktok.com" in youtube_url:
-        messagebox.showinfo("Info", "Eine TikTok-URL wurde erkannt und in das TikTok-URL-Feld verschoben.")
+        messagebox.showinfo(labels["info"], labels["info_tiktok_url_moved"])
         tiktok_url_entry.delete(0, tk.END)
         tiktok_url_entry.insert(0, youtube_url)
         youtube_url_entry.delete(0, tk.END)
@@ -565,45 +559,19 @@ def download_youtube_video():
 
     returncode, _, stderr = run_ffmpeg_command(cmd)
     if returncode == 0:
-        messagebox.showinfo("Erfolg", "YouTube Video erfolgreich heruntergeladen.")
+        messagebox.showinfo(labels["success"], labels["success_youtube_download"])
     else:
-        messagebox.showerror("Fehler", f"Fehler beim Herunterladen des Videos:\n{stderr}")
-
-def sanitize_filename(filename, max_length=100):
-    # Entfernt alle Zeichen außer alphanumerischen, Unterstrichen und Bindestrichen
-    sanitized = re.sub(r'[^\w\s-]', '', filename).strip().replace(' ', '_')
-    if len(sanitized) > max_length:
-        sanitized = sanitized[:max_length].rsplit('_', 1)[0]  # Kürzt auf max_length und bricht an einem Unterstrich ab
-    return sanitized
-
-def download_twitter_video(twitter_url):
-    ydl_opts = {
-        'outtmpl': '%(title)s.%(ext)s',
-        'format': 'best',
-        'noplaylist': True,
-    }
-
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        try:
-            info_dict = ydl.extract_info(twitter_url, download=False)
-            title = sanitize_filename(info_dict.get('title', 'video'))
-            sanitized_filename = f'{title}.%(ext)s'
-            ydl_opts['outtmpl'] = sanitized_filename
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([twitter_url])
-            messagebox.showinfo("Erfolg", f"Twitter Video erfolgreich heruntergeladen als {sanitized_filename}.")
-        except Exception as e:
-            messagebox.showerror("Fehler", f"Fehler beim Herunterladen des Twitter Videos:\n{e}")
+        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
 
 def download_twitter_video_gui():
     twitter_url = twitter_url_entry.get()
     if not twitter_url:
-        messagebox.showerror("Fehler", "Bitte geben Sie eine Twitter URL ein.")
+        messagebox.showerror(labels["error"], labels["error_no_twitter_url"])
         return
 
     # Überprüfen, ob eine YouTube-URL eingegeben wurde
     if "youtube.com" in twitter_url or "youtu.be" in twitter_url:
-        messagebox.showinfo("Info", "Eine YouTube-URL wurde erkannt und in das YouTube-URL-Feld verschoben.")
+        messagebox.showinfo(labels["info"], labels["info_youtube_url_moved"])
         youtube_url_entry.delete(0, tk.END)
         youtube_url_entry.insert(0, twitter_url)
         twitter_url_entry.delete(0, tk.END)
@@ -611,7 +579,7 @@ def download_twitter_video_gui():
 
     # Überprüfen, ob eine TikTok-URL eingegeben wurde
     if "tiktok.com" in twitter_url:
-        messagebox.showinfo("Info", "Eine TikTok-URL wurde erkannt und in das TikTok-URL-Feld verschoben.")
+        messagebox.showinfo(labels["info"], labels["info_tiktok_url_moved"])
         tiktok_url_entry.delete(0, tk.END)
         tiktok_url_entry.insert(0, twitter_url)
         twitter_url_entry.delete(0, tk.END)
@@ -619,50 +587,15 @@ def download_twitter_video_gui():
 
     download_twitter_video(twitter_url)
 
-
-def download_tiktok_video(tiktok_url):
-    ydl_opts = {
-        'outtmpl': '%(title)s.%(ext)s',
-        'format': 'best',
-        'noplaylist': True,
-        'postprocessors': [{
-            'key': 'FFmpegVideoConvertor',
-            'preferedformat': 'mp4'
-        }],
-        'no_warnings': True,
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9'
-        },
-        'extractor_args': {
-            'tiktok': {
-                'skip_watermark': ['1']
-            }
-        }
-    }
-
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        try:
-            info_dict = ydl.extract_info(tiktok_url, download=False)
-            title = sanitize_filename(info_dict.get('title', 'video'))
-            sanitized_filename = f'{title}.%(ext)s'
-            ydl_opts['outtmpl'] = sanitized_filename
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([tiktok_url])
-            messagebox.showinfo("Erfolg", f"TikTok Video erfolgreich heruntergeladen als {sanitized_filename}.")
-        except Exception as e:
-            messagebox.showerror("Fehler", f"Fehler beim Herunterladen des TikTok Videos:\n{e}")
-
 def download_tiktok_video_gui():
     tiktok_url = tiktok_url_entry.get()
     if not tiktok_url:
-        messagebox.showerror("Fehler", "Bitte geben Sie eine TikTok URL ein.")
+        messagebox.showerror(labels["error"], labels["error_no_tiktok_url"])
         return
 
     # Überprüfen, ob eine YouTube-URL eingegeben wurde
     if "youtube.com" in tiktok_url or "youtu.be" in tiktok_url:
-        messagebox.showinfo("Info", "Eine YouTube-URL wurde erkannt und in das YouTube-URL-Feld verschoben.")
+        messagebox.showinfo(labels["info"], labels["info_youtube_url_moved"])
         youtube_url_entry.delete(0, tk.END)
         youtube_url_entry.insert(0, tiktok_url)
         tiktok_url_entry.delete(0, tk.END)
@@ -670,7 +603,7 @@ def download_tiktok_video_gui():
 
     # Überprüfen, ob eine Twitter-URL eingegeben wurde
     if "twitter.com" in tiktok_url or "x.com" in tiktok_url:
-        messagebox.showinfo("Info", "Eine Twitter-URL wurde erkannt und in das Twitter-URL-Feld verschoben.")
+        messagebox.showinfo(labels["info"], labels["info_twitter_url_moved"])
         twitter_url_entry.delete(0, tk.END)
         twitter_url_entry.insert(0, tiktok_url)
         tiktok_url_entry.delete(0, tk.END)
