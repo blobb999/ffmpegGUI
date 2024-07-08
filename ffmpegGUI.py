@@ -522,7 +522,6 @@ def check_youtube_dl_and_aria2c():
     if not os.path.exists(os.path.join(bin_dir, "aria2c.exe")):
         download_and_install_aria2c()
 
-
 def download_youtube_video():
     youtube_url = youtube_url_entry.get()
     if not youtube_url:
@@ -587,6 +586,34 @@ def download_twitter_video_gui():
 
     download_twitter_video(twitter_url)
 
+
+def download_twitter_video(twitter_url):
+    ydl_opts = {
+        'outtmpl': '%(title)s.%(ext)s',
+        'format': 'best',
+        'noplaylist': True,
+        'postprocessors': [{
+            'key': 'FFmpegVideoConvertor',
+            'preferedformat': 'mp4'
+        }],
+        'no_warnings': True,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9'
+        }
+    }
+
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        try:
+            info_dict = ydl.extract_info(twitter_url, download=False)
+            filename = ydl.prepare_filename(info_dict)
+            ydl.download([twitter_url])
+            messagebox.showinfo(labels["success"], labels["success_twitter_download"].format(filename=filename))
+        except Exception as e:
+            messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
+
+
 def download_tiktok_video_gui():
     tiktok_url = tiktok_url_entry.get()
     if not tiktok_url:
@@ -611,6 +638,61 @@ def download_tiktok_video_gui():
 
     download_tiktok_video(tiktok_url)
 
+
+def download_tiktok_video(tiktok_url):
+    ydl_opts = {
+        'outtmpl': '%(title)s.%(ext)s',
+        'format': 'best',
+        'noplaylist': True,
+        'postprocessors': [{
+            'key': 'FFmpegVideoConvertor',
+            'preferedformat': 'mp4'
+        }],
+        'no_warnings': True,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9'
+        },
+        'extractor_args': {
+            'tiktok': {
+                'skip_watermark': ['1']
+            }
+        }
+    }
+
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        try:
+            info_dict = ydl.extract_info(tiktok_url, download=False)
+            filename = ydl.prepare_filename(info_dict)
+            ydl.download([tiktok_url])
+            messagebox.showinfo(labels["success"], labels["success_tiktok_download"].format(filename=filename))
+        except Exception as e:
+            messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
+
+def download_tiktok_video_gui():
+    tiktok_url = tiktok_url_entry.get()
+    if not tiktok_url:
+        messagebox.showerror("Fehler", "Bitte geben Sie eine TikTok URL ein.")
+        return
+
+    # Überprüfen, ob eine YouTube-URL eingegeben wurde
+    if "youtube.com" in tiktok_url or "youtu.be" in tiktok_url:
+        messagebox.showinfo("Info", "Eine YouTube-URL wurde erkannt und in das YouTube-URL-Feld verschoben.")
+        youtube_url_entry.delete(0, tk.END)
+        youtube_url_entry.insert(0, tiktok_url)
+        tiktok_url_entry.delete(0, tk.END)
+        return
+
+    # Überprüfen, ob eine Twitter-URL eingegeben wurde
+    if "twitter.com" in tiktok_url or "x.com" in tiktok_url:
+        messagebox.showinfo("Info", "Eine Twitter-URL wurde erkannt und in das Twitter-URL-Feld verschoben.")
+        twitter_url_entry.delete(0, tk.END)
+        twitter_url_entry.insert(0, tiktok_url)
+        tiktok_url_entry.delete(0, tk.END)
+        return
+
+    download_tiktok_video(tiktok_url)
 
 
 def download_update(urls):
