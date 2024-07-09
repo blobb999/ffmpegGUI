@@ -530,7 +530,7 @@ def sanitize_filename(value):
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
     value = re.sub(r'[^\w\s-]', '', value).strip().lower()
     value = re.sub(r'[-\s]+', '-', value)
-    return value[:16]  # Kürze auf 16 Zeichen, was für die meisten Dateisysteme sicher ist.
+    return value[:32]  # Kürze auf 32 Zeichen, was für die meisten Dateisysteme sicher ist.
 
 
 
