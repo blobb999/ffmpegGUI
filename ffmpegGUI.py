@@ -11,6 +11,7 @@ import requests
 import tempfile
 from tqdm import tqdm
 import yt_dlp as youtube_dl
+import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
 
@@ -521,6 +522,17 @@ def check_youtube_dl_and_aria2c():
 
     if not os.path.exists(os.path.join(bin_dir, "aria2c.exe")):
         download_and_install_aria2c()
+def sanitize_filename(value):
+    """
+    Bereinigt den Dateinamen von Sonderzeichen und Kürzt ihn auf eine sichere Länge.
+    """
+    value = str(value)
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
+    value = re.sub(r'[-\s]+', '-', value)
+    return value[:16]  # Kürze auf 16 Zeichen, was für die meisten Dateisysteme sicher ist.
+
+
 
 def download_youtube_video():
     youtube_url = youtube_url_entry.get()
@@ -586,7 +598,6 @@ def download_twitter_video_gui():
 
     download_twitter_video(twitter_url)
 
-
 def download_twitter_video(twitter_url):
     ydl_opts = {
         'outtmpl': '%(title)s.%(ext)s',
@@ -607,12 +618,14 @@ def download_twitter_video(twitter_url):
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         try:
             info_dict = ydl.extract_info(twitter_url, download=False)
-            filename = ydl.prepare_filename(info_dict)
-            ydl.download([twitter_url])
-            messagebox.showinfo(labels["success"], labels["success_twitter_download"].format(filename=filename))
+            title = sanitize_filename(info_dict.get('title', 'video'))
+            sanitized_filename = f'{title}.%(ext)s'
+            ydl_opts['outtmpl'] = sanitized_filename
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([twitter_url])
+            messagebox.showinfo(labels["success"], labels["success_twitter_download"].format(filename=sanitized_filename))
         except Exception as e:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
-
 
 def download_tiktok_video_gui():
     tiktok_url = tiktok_url_entry.get()
@@ -637,7 +650,6 @@ def download_tiktok_video_gui():
         return
 
     download_tiktok_video(tiktok_url)
-
 
 def download_tiktok_video(tiktok_url):
     ydl_opts = {
@@ -664,35 +676,15 @@ def download_tiktok_video(tiktok_url):
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         try:
             info_dict = ydl.extract_info(tiktok_url, download=False)
-            filename = ydl.prepare_filename(info_dict)
-            ydl.download([tiktok_url])
-            messagebox.showinfo(labels["success"], labels["success_tiktok_download"].format(filename=filename))
+            title = sanitize_filename(info_dict.get('title', 'video'))
+            sanitized_filename = f'{title}.%(ext)s'
+            ydl_opts['outtmpl'] = sanitized_filename
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([tiktok_url])
+            messagebox.showinfo(labels["success"], labels["success_tiktok_download"].format(filename=sanitized_filename))
         except Exception as e:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
 
-def download_tiktok_video_gui():
-    tiktok_url = tiktok_url_entry.get()
-    if not tiktok_url:
-        messagebox.showerror("Fehler", "Bitte geben Sie eine TikTok URL ein.")
-        return
-
-    # Überprüfen, ob eine YouTube-URL eingegeben wurde
-    if "youtube.com" in tiktok_url or "youtu.be" in tiktok_url:
-        messagebox.showinfo("Info", "Eine YouTube-URL wurde erkannt und in das YouTube-URL-Feld verschoben.")
-        youtube_url_entry.delete(0, tk.END)
-        youtube_url_entry.insert(0, tiktok_url)
-        tiktok_url_entry.delete(0, tk.END)
-        return
-
-    # Überprüfen, ob eine Twitter-URL eingegeben wurde
-    if "twitter.com" in tiktok_url or "x.com" in tiktok_url:
-        messagebox.showinfo("Info", "Eine Twitter-URL wurde erkannt und in das Twitter-URL-Feld verschoben.")
-        twitter_url_entry.delete(0, tk.END)
-        twitter_url_entry.insert(0, tiktok_url)
-        tiktok_url_entry.delete(0, tk.END)
-        return
-
-    download_tiktok_video(tiktok_url)
 
 
 def download_update(urls):
