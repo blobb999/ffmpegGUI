@@ -15,7 +15,7 @@ import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
 
-current_version = "v0.0.2-alpha"
+current_version = "v0.0.3-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -26,6 +26,12 @@ def check_for_updates():
     repo_url = "https://github.com/blobb999/ffmpegGUI"
     latest_version_url = f"{repo_url}/releases/latest/download/version.txt"
     new_exe_url = f"{repo_url}/releases/latest/download/ffmpegGUI.exe"
+
+    # Update youtube-dl.exe without asking
+    try:
+        subprocess.run([os.path.join(bin_dir, "youtube-dl.exe"), "-U"], check=True, cwd=bin_dir)
+    except Exception as e:
+        messagebox.showerror(labels["error"], f"Fehler beim Aktualisieren von youtube-dl.exe:\n{e}")
 
     try:
         with urllib.request.urlopen(latest_version_url) as response:
@@ -62,6 +68,14 @@ def check_for_updates():
             messagebox.showinfo(labels["info"], labels["success"])
     except Exception as e:
         messagebox.showerror(labels["error"], f"{labels['error']}:\n{e}")
+
+def update_youtube_dl():
+    try:
+        youtube_dl_path = os.path.join(bin_dir, "youtube-dl.exe")
+        subprocess.run([youtube_dl_path, "-U"], check=True, cwd=bin_dir)  # Update im bin-Verzeichnis ausführen
+        messagebox.showinfo(labels["info"], "youtube-dl.exe wurde erfolgreich aktualisiert.")
+    except Exception as e:
+        messagebox.showerror(labels["error"], f"Fehler beim Aktualisieren von youtube-dl.exe:\n{e}")
 
 def update_labels(language):
     global labels
@@ -478,6 +492,7 @@ def check_youtube_dl_and_aria2c():
 
         try:
             urllib.request.urlretrieve(url, download_path)
+            subprocess.run([download_path, "-U"], check=True, cwd=bin_dir)  # Aktualisieren Sie youtube-dl.exe nach dem Herunterladen im bin-Verzeichnis
         except Exception as e:
             messagebox.showerror("Fehler", f"Fehler beim Download von youtube-dl:\n{e}")
 
@@ -512,26 +527,16 @@ def check_youtube_dl_and_aria2c():
         except Exception as e:
             messagebox.showerror("Fehler", f"Fehler beim Download und Installation von aria2:\n{e}")
 
-    if os.path.exists("youtube-dl.exe"):
-        move_to_bin("youtube-dl.exe")
-    if os.path.exists("aria2c.exe"):
-        move_to_bin("aria2c.exe")
+    if not os.path.exists(bin_dir):
+        os.makedirs(bin_dir)
 
     if not os.path.exists(os.path.join(bin_dir, "youtube-dl.exe")):
         download_and_install_youtube_dl()
+    else:
+        subprocess.run([os.path.join(bin_dir, "youtube-dl.exe"), "-U"], check=True, cwd=bin_dir)  # Aktualisieren Sie youtube-dl.exe im bin-Verzeichnis
 
     if not os.path.exists(os.path.join(bin_dir, "aria2c.exe")):
         download_and_install_aria2c()
-def sanitize_filename(value):
-    """
-    Bereinigt den Dateinamen von Sonderzeichen und Kürzt ihn auf eine sichere Länge.
-    """
-    value = str(value)
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
-    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
-    value = re.sub(r'[-\s]+', '-', value)
-    return value[:32]  # Kürze auf 32 Zeichen, was für die meisten Dateisysteme sicher ist.
-
 
 
 def download_youtube_video():
@@ -558,21 +563,47 @@ def download_youtube_video():
 
     check_youtube_dl_and_aria2c()
 
-    cmd = [
+    # Extrahiere Videoinformationen, um den Titel zu erhalten
+    cmd_info = [
+        os.path.join(bin_dir, "youtube-dl.exe"), "--get-title", youtube_url
+    ]
+
+    result = subprocess.run(cmd_info, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=bin_dir)
+    if result.returncode != 0:
+        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{result.stderr}")
+        return
+
+    title = sanitize_filename(result.stdout.strip())
+
+    # Verwende den bereinigten Titel für den Dateinamen
+    output_template = f"{title}.%(ext)s"
+
+    cmd_download = [
         os.path.join(bin_dir, "youtube-dl.exe"),
         "--external-downloader", os.path.join(bin_dir, "aria2c.exe"),
         "--external-downloader-args", "-x 16 -s 16 -k 1M --file-allocation=none",
         "--no-check-certificate", "--write-auto-sub", "--youtube-skip-dash-manifest",
         "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
-        "-t", "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
-        "--restrict-filenames", "--output", "%(title)s.%(ext)s", youtube_url
+        "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
+        "--restrict-filenames", "--output", output_template, youtube_url
     ]
 
-    returncode, _, stderr = run_ffmpeg_command(cmd)
+    returncode, _, stderr = run_ffmpeg_command(cmd_download)
     if returncode == 0:
         messagebox.showinfo(labels["success"], labels["success_youtube_download"])
     else:
         messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
+
+
+def sanitize_filename(value):
+    """
+    Bereinigt den Dateinamen von Sonderzeichen und kürzt ihn auf eine sichere Länge.
+    """
+    value = str(value)
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
+    value = re.sub(r'[-\s]+', '-', value)
+    return value[:32]  # Kürze auf 32 Zeichen, was für die meisten Dateisysteme sicher ist.
 
 def download_twitter_video_gui():
     twitter_url = twitter_url_entry.get()
@@ -850,6 +881,9 @@ else:
 
     update_button = tk.Button(info_frame, text=labels["check_update"], command=check_for_updates)
     update_button.pack(padx=10, pady=10)
+
+    update_youtube_dl_button = tk.Button(info_frame, text="Update youtube-dl.exe", command=update_youtube_dl)
+    update_youtube_dl_button.pack(padx=10, pady=10)
 
 
     add_flag_button('de', 'Germany', 0, 0, 'de')
