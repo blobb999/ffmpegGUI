@@ -21,6 +21,13 @@ def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
 
 labels = change_language("de")
+selected_language = "es"
+
+def set_language(language_code):
+    global selected_language
+    selected_language = language_code
+    update_labels(language_code)
+
 
 def check_for_updates():
     repo_url = "https://github.com/blobb999/ffmpegGUI"
@@ -542,8 +549,6 @@ def check_youtube_dl_and_aria2c():
 # Prüfen und Aktualisieren von youtube-dl.exe beim Start der Anwendung
 check_youtube_dl_and_aria2c()
 
-
-
 def download_youtube_video():
     youtube_url = youtube_url_entry.get()
     if not youtube_url:
@@ -585,8 +590,8 @@ def download_youtube_video():
         os.path.join(bin_dir, "youtube-dl.exe"),
         "--external-downloader", os.path.join(bin_dir, "aria2c.exe"),
         "--external-downloader-args", "-x 16 -s 16 -k 1M --file-allocation=none",
-        "--no-check-certificate", "--write-auto-sub", "--youtube-skip-dash-manifest",
-        "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
+        "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
+        "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
         "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
         "--restrict-filenames", "--output", output_template, youtube_url
     ]
@@ -596,8 +601,6 @@ def download_youtube_video():
         messagebox.showinfo(labels["success"], labels["success_youtube_download"])
     else:
         messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
-
-
 
 def sanitize_filename(value):
     """
@@ -750,10 +753,10 @@ def add_flag_button(country_code, country_name, row, col, language_code):
         download_flag(country_code, img_path)
     
     flag_image = tk.PhotoImage(file=img_path).subsample(2, 2)  # Verkleinern auf die Hälfte der ursprünglichen Größe
-    button = tk.Button(language_frame, image=flag_image, command=lambda: update_labels(language_code))
+    button = tk.Button(language_frame, image=flag_image, command=lambda: set_language(language_code))
     button.image = flag_image
     button.grid(row=row, column=col, padx=5, pady=5)
-    button.config(command=lambda: [update_labels(language_code), root.update_idletasks()])
+
 
 root = tk.Tk()
 root.title("ffmpegGUI")
