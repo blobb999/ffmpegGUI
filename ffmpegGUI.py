@@ -15,7 +15,7 @@ import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
 
-current_version = "v0.0.1-alpha"
+current_version = "v0.0.2-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -386,7 +386,7 @@ def split_video():
         messagebox.showerror("Fehler", "Bitte wählen Sie eine Quelldatei.")
         return
 
-    cmd_duration = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", source_file]
+    cmd_duration = [os.path.join(bin_dir, "ffprobe"), "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", source_file]
     result = subprocess.run(cmd_duration, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode != 0:
         messagebox.showerror("Fehler", f"Fehler beim Abrufen der Videodauer:\n{result.stderr}")
@@ -403,7 +403,7 @@ def split_video():
         start_time = i * split_duration
         segment_file = os.path.join(target_directory, f"{os.path.splitext(os.path.basename(source_file))[0]}_part{i+1}.mp4")
         cmd = [
-            "ffmpeg", "-y", "-i", source_file,
+            os.path.join(bin_dir, "ffmpeg"), "-y", "-i", source_file,
             "-ss", str(start_time), "-t", str(split_duration),
             "-c:a", "copy", "-c:v", "copy",
             segment_file
@@ -411,13 +411,12 @@ def split_video():
         returncode, _, stderr = run_ffmpeg_command(cmd)
         if returncode != 0:
             messagebox.showerror("Fehler", f"Fehler beim Splitten des Videos:\n{stderr}")
-
             return
 
     if total_duration % split_duration != 0:
         last_segment_file = os.path.join(target_directory, f"{os.path.splitext(os.path.basename(source_file))[0]}_part{num_segments+1}.mp4")
         cmd_last = [
-            "ffmpeg", "-y", "-i", source_file,
+            os.path.join(bin_dir, "ffmpeg"), "-y", "-i", source_file,
             "-ss", str(num_segments * split_duration),
             "-c:v", "copy", "-c:a", "copy", last_segment_file
         ]
@@ -427,6 +426,7 @@ def split_video():
             return
 
     messagebox.showinfo(labels["success_video_split"], labels["success_video_split"].format(num_segments=num_segments+1))
+
 
 def show_supported_formats(parent):
     formats = ['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'mpeg']
@@ -565,7 +565,7 @@ def download_youtube_video():
         "--no-check-certificate", "--write-auto-sub", "--youtube-skip-dash-manifest",
         "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
         "-t", "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
-        "--restrict-filenames", youtube_url
+        "--restrict-filenames", "--output", "%(title)s.%(ext)s", youtube_url
     ]
 
     returncode, _, stderr = run_ffmpeg_command(cmd)
@@ -619,7 +619,7 @@ def download_twitter_video(twitter_url):
         try:
             info_dict = ydl.extract_info(twitter_url, download=False)
             title = sanitize_filename(info_dict.get('title', 'video'))
-            sanitized_filename = f'{title}.%(ext)s'
+            sanitized_filename = f'{title}.mp4'
             ydl_opts['outtmpl'] = sanitized_filename
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([twitter_url])
@@ -677,14 +677,13 @@ def download_tiktok_video(tiktok_url):
         try:
             info_dict = ydl.extract_info(tiktok_url, download=False)
             title = sanitize_filename(info_dict.get('title', 'video'))
-            sanitized_filename = f'{title}.%(ext)s'
+            sanitized_filename = f'{title}.mp4'
             ydl_opts['outtmpl'] = sanitized_filename
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([tiktok_url])
             messagebox.showinfo(labels["success"], labels["success_tiktok_download"].format(filename=sanitized_filename))
         except Exception as e:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
-
 
 
 def download_update(urls):
