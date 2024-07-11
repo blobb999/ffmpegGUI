@@ -15,7 +15,7 @@ import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
 
-current_version = "v0.0.3-alpha"
+current_version = "v0.0.4-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -485,6 +485,7 @@ def cut_segment():
 
     messagebox.showinfo(labels["success"], labels["success_segment"])
 
+# Funktion, um youtube-dl und aria2c zu überprüfen und ggf. zu installieren
 def check_youtube_dl_and_aria2c():
     def download_and_install_youtube_dl():
         url = "https://github.com/ytdl-org/ytdl-nightly/releases/download/2024.07.03/youtube-dl.exe"
@@ -538,6 +539,10 @@ def check_youtube_dl_and_aria2c():
     if not os.path.exists(os.path.join(bin_dir, "aria2c.exe")):
         download_and_install_aria2c()
 
+# Prüfen und Aktualisieren von youtube-dl.exe beim Start der Anwendung
+check_youtube_dl_and_aria2c()
+
+
 
 def download_youtube_video():
     youtube_url = youtube_url_entry.get()
@@ -560,8 +565,6 @@ def download_youtube_video():
         tiktok_url_entry.insert(0, youtube_url)
         youtube_url_entry.delete(0, tk.END)
         return
-
-    check_youtube_dl_and_aria2c()
 
     # Extrahiere Videoinformationen, um den Titel zu erhalten
     cmd_info = [
@@ -593,6 +596,7 @@ def download_youtube_video():
         messagebox.showinfo(labels["success"], labels["success_youtube_download"])
     else:
         messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
+
 
 
 def sanitize_filename(value):
@@ -881,10 +885,6 @@ else:
 
     update_button = tk.Button(info_frame, text=labels["check_update"], command=check_for_updates)
     update_button.pack(padx=10, pady=10)
-
-    update_youtube_dl_button = tk.Button(info_frame, text="Update youtube-dl.exe", command=update_youtube_dl)
-    update_youtube_dl_button.pack(padx=10, pady=10)
-
 
     add_flag_button('de', 'Germany', 0, 0, 'de')
     add_flag_button('es', 'Spain', 0, 1, 'es')
