@@ -20,8 +20,8 @@ current_version = "v0.0.4-alpha"
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
 
-labels = change_language("de")
-selected_language = "es"
+labels = change_language("en")
+selected_language = "en"
 
 def set_language(language_code):
     global selected_language
@@ -599,9 +599,11 @@ def download_youtube_video():
     returncode, _, stderr = run_ffmpeg_command(cmd_download)
     if returncode == 0:
         messagebox.showinfo(labels["success"], labels["success_youtube_download"])
+        reset_download_gui()
     else:
         messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
 
+        
 def sanitize_filename(value):
     """
     Bereinigt den Dateinamen von Sonderzeichen und kürzt ihn auf eine sichere Länge.
@@ -637,7 +639,17 @@ def download_twitter_video_gui():
     download_twitter_video(twitter_url)
 
 def download_twitter_video(twitter_url):
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
+            downloaded_bytes = d.get('downloaded_bytes')
+            if total_bytes is not None and downloaded_bytes is not None:
+                progress['maximum'] = total_bytes
+                progress['value'] = downloaded_bytes
+                root.update_idletasks()
+
     ydl_opts = {
+        'progress_hooks': [progress_hook],
         'outtmpl': '%(title)s.%(ext)s',
         'format': 'best',
         'noplaylist': True,
@@ -647,7 +659,7 @@ def download_twitter_video(twitter_url):
         }],
         'no_warnings': True,
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, wie Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9'
         }
@@ -662,8 +674,10 @@ def download_twitter_video(twitter_url):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([twitter_url])
             messagebox.showinfo(labels["success"], labels["success_twitter_download"].format(filename=sanitized_filename))
+            reset_download_gui()
         except Exception as e:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
+
 
 def download_tiktok_video_gui():
     tiktok_url = tiktok_url_entry.get()
@@ -689,8 +703,19 @@ def download_tiktok_video_gui():
 
     download_tiktok_video(tiktok_url)
 
+
 def download_tiktok_video(tiktok_url):
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
+            downloaded_bytes = d.get('downloaded_bytes')
+            if total_bytes is not None and downloaded_bytes is not None:
+                progress['maximum'] = total_bytes
+                progress['value'] = downloaded_bytes
+                root.update_idletasks()
+
     ydl_opts = {
+        'progress_hooks': [progress_hook],
         'outtmpl': '%(title)s.%(ext)s',
         'format': 'best',
         'noplaylist': True,
@@ -700,7 +725,7 @@ def download_tiktok_video(tiktok_url):
         }],
         'no_warnings': True,
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, wie Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9'
         },
@@ -720,8 +745,10 @@ def download_tiktok_video(tiktok_url):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([tiktok_url])
             messagebox.showinfo(labels["success"], labels["success_tiktok_download"].format(filename=sanitized_filename))
+            reset_download_gui()
         except Exception as e:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
+
 
 
 def download_update(urls):
@@ -756,6 +783,12 @@ def add_flag_button(country_code, country_name, row, col, language_code):
     button = tk.Button(language_frame, image=flag_image, command=lambda: set_language(language_code))
     button.image = flag_image
     button.grid(row=row, column=col, padx=5, pady=5)
+
+def reset_download_gui():
+    youtube_url_entry.delete(0, tk.END)
+    twitter_url_entry.delete(0, tk.END)
+    tiktok_url_entry.delete(0, tk.END)
+    progress['value'] = 0
 
 
 root = tk.Tk()
@@ -876,6 +909,10 @@ else:
     tiktok_url_entry.grid(row=2, column=1, padx=5, pady=5, sticky="we")
     tiktok_download_button = tk.Button(youtube_frame, text=labels["download_tiktok"], command=download_tiktok_video_gui)
     tiktok_download_button.grid(row=2, column=2, padx=5, pady=5, sticky="e")
+
+    progress = ttk.Progressbar(youtube_frame, orient="horizontal", length=300, mode="determinate")
+    progress.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
+
 
     # Info Tab
     info_text = f"""ffmpegGUI Version {current_version}
