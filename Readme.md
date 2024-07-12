@@ -28,7 +28,8 @@ Dieses Projekt ist eine Python-basierte GUI-Anwendung, die verschiedene Videobea
 		Anfangs- und Endzeit.
 
 	YouTube-Download: Laden Sie YouTube-Videos mit Unterstützung von youtube-dl und aria2 herunter, 
-		um die beste Videoqualität zu erhalten.
+		um die beste Videoqualität zu erhalten. Es werden auch Videobeschreibung und Untertitel der
+		gewählten Sprachen heruntergeladen.
 
 	Twitter-Download: Laden Sie Twitter-Videos mit Unterstützung von youtube-dl herunter.
 
@@ -54,8 +55,8 @@ Anforderungen:
 
     ffmpeg und ffprobe: Werden auf Wunsch heruntergeladen und im Programverzeichnis installiert oder 
 		können von der offiziellen FFmpeg-Website heruntergeladen werden. https://ffmpeg.org/download.html
-    youtube-dl: Wird automatisch heruntergeladen und im Programverzeichnis installiert, falls nicht vorhanden. 
-		Quelle: https://github.com/ytdl-org/ytdl-nightly
+    youtube-dl: Wird automatisch heruntergeladen und im Programverzeichnis installiert, 
+		falls nicht vorhanden. Quelle: https://github.com/ytdl-org/ytdl-nightly
     aria2: Wird automatisch heruntergeladen und im Programverzeichnis installiert, 
 		falls nicht vorhanden. Quelle: https://sourceforge.net/projects/aria2/
 
