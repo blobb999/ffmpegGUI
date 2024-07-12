@@ -31,10 +31,11 @@ Dieses Projekt ist eine Python-basierte GUI-Anwendung, die verschiedene Videobea
 		um die beste Videoqualität zu erhalten. Es werden auch Videobeschreibung und Untertitel der
 		gewählten Sprachen heruntergeladen.
 
-	Twitter-Download: Laden Sie Twitter-Videos mit Unterstützung von youtube-dl herunter.
+	Twitter-Download: Laden Sie Twitter-Videos mit Unterstützung vom Python Plugin yt_dlp 
+		als youtube-dl herunter.
 
-	TikTok-Download: Laden Sie TikTok-Videos mit Unterstützung von youtube-dl herunter, 
-		wobei das Wasserzeichen automatisch entfernt wird.
+	TikTok-Download: Laden Sie TikTok-Videos mit Unterstützung om Python Plugin yt_dlp  
+		youtube-dl herunter, wobei das Wasserzeichen automatisch entfernt wird.
 	
 	Download Kompatibiltät mit weiteren Videoplattformen: VK, Bitchute, Rumble und Odysse. 
 		(Twitterfeld benutzen - ist etwas unschön im Moment, i know)
