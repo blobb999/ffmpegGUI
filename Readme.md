@@ -35,7 +35,7 @@ Dieses Projekt ist eine Python-basierte GUI-Anwendung, die verschiedene Videobea
 	TikTok-Download: Laden Sie TikTok-Videos mit Unterstützung von youtube-dl herunter, 
 		wobei das Wasserzeichen automatisch entfernt wird.
 	
-	Download Kompatibiltät mit weiteren Videoplattformen: VK, Bitchute und Odysse. 
+	Download Kompatibiltät mit weiteren Videoplattformen: VK, Bitchute, Rumble und Odysse. 
 		(Twitterfeld benutzen - ist etwas unschön im Moment, i know)
 
 	GUI-Sprache anpassen: Unterstützt Sprachen wie Deutsch, Spanisch, Englisch, Chinesisch, 
