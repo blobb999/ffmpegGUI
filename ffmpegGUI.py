@@ -15,7 +15,7 @@ import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
 
-current_version = "v0.0.4-alpha"
+current_version = "v0.0.5-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -367,7 +367,7 @@ def show_video_info():
         messagebox.showerror(labels["error_select_file"], labels["error_select_file"])
         return
 
-    cmd = ["ffmpeg", "-i", source_file, "-f", "null", "-"]
+    cmd = [os.path.join(bin_dir, "ffmpeg.exe"), "-i", source_file, "-f", "null", "-"]
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     
     info_window = tk.Toplevel(root)
@@ -377,6 +377,7 @@ def show_video_info():
     text = tk.Text(info_window, wrap=tk.WORD)
     text.insert(tk.END, result.stderr)  # stderr enthält die Informationen
     text.pack(expand=True, fill=tk.BOTH)
+
 
 def extract_audio():
     source_file = source_entry.get()
