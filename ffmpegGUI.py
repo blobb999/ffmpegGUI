@@ -84,6 +84,7 @@ def update_youtube_dl():
     except Exception as e:
         messagebox.showerror(labels["error"], f"Fehler beim Aktualisieren von youtube-dl.exe:\n{e}")
 
+# Update labels function to ensure new labels are updated
 def update_labels(language):
     global labels
     labels = change_language(language)
@@ -105,19 +106,14 @@ def update_labels(language):
     audio_extract_label.config(text=labels["audio_extract"])
     segment_extract_label.config(text=labels["segment_extract"])
     from_to_label.config(text=labels["from_to"])
-    youtube_url_label.config(text=labels["youtube_url"])
-    twitter_url_label.config(text=labels["twitter_url"])
-    tiktok_url_label.config(text=labels["tiktok_url"])
-    twitter_download_button.config(text=labels["download_twitter"])
-    tiktok_download_button.config(text=labels["download_tiktok"])
     mirror_label.config(text=labels["mirror"])
     update_button.config(text=labels["check_update"])
+    url_label.config(text=labels["url"])  # Ensure URL label is updated
 
     notebook.tab(main_frame, text=labels["main_tab"])
     notebook.tab(youtube_frame, text=labels["youtube_tab"])
     notebook.tab(language_frame, text=labels["language_tab"])
     notebook.tab(info_frame, text=labels["info_tab"])
-
 
 if not os.path.exists("img"):
     os.makedirs("img")
@@ -244,7 +240,6 @@ def run_ffmpeg_command(cmd):
         return 1, "", f"{cmd[0]} not found"
 
 
-
 def select_source_file():
     source_file = filedialog.askopenfilename()
     source_entry.delete(0, tk.END)
@@ -358,7 +353,6 @@ def repair_video():
         messagebox.showinfo(labels["success_repair"], labels["success_repair"])
     else:
         messagebox.showerror(labels["error_ffmpeg_command"], f"{labels['error_ffmpeg_command']}\n{stderr}")
-
 
 def show_video_info():
     source_file = source_entry.get()
@@ -550,162 +544,19 @@ def check_youtube_dl_and_aria2c():
 # Prüfen und Aktualisieren von youtube-dl.exe beim Start der Anwendung
 check_youtube_dl_and_aria2c()
 
-def download_youtube_video():
-    youtube_url = youtube_url_entry.get()
-    if not youtube_url:
-        messagebox.showerror(labels["error"], labels["error_no_youtube_url"])
+def download_video():
+    url = url_entry.get()
+    if not url:
+        messagebox.showerror(labels["error"], labels["error_no_url"])
         return
 
-    # Überprüfen, ob eine Twitter-URL oder eine X-URL eingegeben wurde
-    if "twitter.com" in youtube_url or "x.com" in youtube_url:
-        messagebox.showinfo(labels["info"], labels["info_twitter_url_moved"])
-        twitter_url_entry.delete(0, tk.END)
-        twitter_url_entry.insert(0, youtube_url)
-        youtube_url_entry.delete(0, tk.END)
-        return
-
-    # Überprüfen, ob eine TikTok-URL eingegeben wurde
-    if "tiktok.com" in youtube_url:
-        messagebox.showinfo(labels["info"], labels["info_tiktok_url_moved"])
-        tiktok_url_entry.delete(0, tk.END)
-        tiktok_url_entry.insert(0, youtube_url)
-        youtube_url_entry.delete(0, tk.END)
-        return
-
-    # Extrahiere Videoinformationen, um den Titel zu erhalten
-    cmd_info = [
-        os.path.join(bin_dir, "youtube-dl.exe"), "--get-title", youtube_url
-    ]
-
-    result = subprocess.run(cmd_info, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=bin_dir)
-    if result.returncode != 0:
-        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{result.stderr}")
-        return
-
-    title = sanitize_filename(result.stdout.strip())
-
-    # Verwende den bereinigten Titel für den Dateinamen
-    output_template = f"{title}.%(ext)s"
-
-    cmd_download = [
-        os.path.join(bin_dir, "youtube-dl.exe"),
-        "--external-downloader", os.path.join(bin_dir, "aria2c.exe"),
-        "--external-downloader-args", "-x 16 -s 16 -k 1M --file-allocation=none",
-        "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
-        "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
-        "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
-        "--restrict-filenames", "--output", output_template, youtube_url
-    ]
-
-    returncode, _, stderr = run_ffmpeg_command(cmd_download)
-    if returncode == 0:
-        messagebox.showinfo(labels["success"], labels["success_youtube_download"])
-        reset_download_gui()
+    if "youtube.com" in url or "youtu.be" in url:
+        download_youtube_video()
     else:
-        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
-
-        
-def sanitize_filename(value):
-    """
-    Bereinigt den Dateinamen von Sonderzeichen und kürzt ihn auf eine sichere Länge.
-    """
-    value = str(value)
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
-    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
-    value = re.sub(r'[-\s]+', '-', value)
-    return value[:32]  # Kürze auf 32 Zeichen, was für die meisten Dateisysteme sicher ist.
-
-def download_twitter_video_gui():
-    twitter_url = twitter_url_entry.get()
-    if not twitter_url:
-        messagebox.showerror(labels["error"], labels["error_no_twitter_url"])
-        return
-
-    # Überprüfen, ob eine YouTube-URL eingegeben wurde
-    if "youtube.com" in twitter_url or "youtu.be" in twitter_url:
-        messagebox.showinfo(labels["info"], labels["info_youtube_url_moved"])
-        youtube_url_entry.delete(0, tk.END)
-        youtube_url_entry.insert(0, twitter_url)
-        twitter_url_entry.delete(0, tk.END)
-        return
-
-    # Überprüfen, ob eine TikTok-URL eingegeben wurde
-    if "tiktok.com" in twitter_url:
-        messagebox.showinfo(labels["info"], labels["info_tiktok_url_moved"])
-        tiktok_url_entry.delete(0, tk.END)
-        tiktok_url_entry.insert(0, twitter_url)
-        twitter_url_entry.delete(0, tk.END)
-        return
-
-    download_twitter_video(twitter_url)
-
-def download_twitter_video(twitter_url):
-    def progress_hook(d):
-        if d['status'] == 'downloading':
-            total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
-            downloaded_bytes = d.get('downloaded_bytes')
-            if total_bytes is not None and downloaded_bytes is not None:
-                progress['maximum'] = total_bytes
-                progress['value'] = downloaded_bytes
-                root.update_idletasks()
-
-    ydl_opts = {
-        'progress_hooks': [progress_hook],
-        'outtmpl': '%(title)s.%(ext)s',
-        'format': 'best',
-        'noplaylist': True,
-        'postprocessors': [{
-            'key': 'FFmpegVideoConvertor',
-            'preferedformat': 'mp4'
-        }],
-        'no_warnings': True,
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, wie Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9'
-        }
-    }
-
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        try:
-            info_dict = ydl.extract_info(twitter_url, download=False)
-            title = sanitize_filename(info_dict.get('title', 'video'))
-            sanitized_filename = f'{title}.mp4'
-            ydl_opts['outtmpl'] = sanitized_filename
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([twitter_url])
-            messagebox.showinfo(labels["success"], labels["success_twitter_download"].format(filename=sanitized_filename))
-            reset_download_gui()
-        except Exception as e:
-            messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
+        download_other_video(url)
 
 
-def download_tiktok_video_gui():
-    tiktok_url = tiktok_url_entry.get()
-    if not tiktok_url:
-        messagebox.showerror(labels["error"], labels["error_no_tiktok_url"])
-        return
-
-    # Überprüfen, ob eine YouTube-URL eingegeben wurde
-    if "youtube.com" in tiktok_url or "youtu.be" in tiktok_url:
-        messagebox.showinfo(labels["info"], labels["info_youtube_url_moved"])
-        youtube_url_entry.delete(0, tk.END)
-        youtube_url_entry.insert(0, tiktok_url)
-        tiktok_url_entry.delete(0, tk.END)
-        return
-
-    # Überprüfen, ob eine Twitter-URL eingegeben wurde
-    if "twitter.com" in tiktok_url or "x.com" in tiktok_url:
-        messagebox.showinfo(labels["info"], labels["info_twitter_url_moved"])
-        twitter_url_entry.delete(0, tk.END)
-        twitter_url_entry.insert(0, tiktok_url)
-        tiktok_url_entry.delete(0, tk.END)
-        return
-
-    download_tiktok_video(tiktok_url)
-
-
-def download_tiktok_video(tiktok_url):
+def download_other_video(url):
     def progress_hook(d):
         if d['status'] == 'downloading':
             total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
@@ -739,41 +590,72 @@ def download_tiktok_video(tiktok_url):
 
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         try:
-            info_dict = ydl.extract_info(tiktok_url, download=False)
+            info_dict = ydl.extract_info(url, download=False)
             title = sanitize_filename(info_dict.get('title', 'video'))
             sanitized_filename = f'{title}.mp4'
             ydl_opts['outtmpl'] = sanitized_filename
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([tiktok_url])
-            messagebox.showinfo(labels["success"], labels["success_tiktok_download"].format(filename=sanitized_filename))
+                ydl.download([url])
+            messagebox.showinfo(labels["success"], labels["success_download"].format(filename=sanitized_filename))
             reset_download_gui()
         except Exception as e:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
 
+def download_youtube_video():
+    youtube_url = url_entry.get()
+    if not youtube_url:
+        messagebox.showerror(labels["error"], labels["error_no_url"])
+        return
+
+    if "youtube.com" in youtube_url or "youtu.be" in youtube_url:
+        # Verwenden Sie die youtube-dl.exe Binärdatei
+        cmd_info = [
+            os.path.join(bin_dir, "youtube-dl.exe"), "--get-title", youtube_url
+        ]
+
+        result = subprocess.run(cmd_info, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=bin_dir)
+        if result.returncode != 0:
+            messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{result.stderr}")
+            return
+
+        title = sanitize_filename(result.stdout.strip())
+
+        # Verwende den bereinigten Titel für den Dateinamen
+        output_template = f"{title}.%(ext)s"
+
+        cmd_download = [
+            os.path.join(bin_dir, "youtube-dl.exe"),
+            "--external-downloader", os.path.join(bin_dir, "aria2c.exe"),
+            "--external-downloader-args", "-x 16 -s 16 -k 1M --file-allocation=none",
+            "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
+            "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
+            "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
+            "--restrict-filenames", "--output", output_template, youtube_url
+        ]
+
+        returncode, _, stderr = run_ffmpeg_command(cmd_download)
+        if returncode == 0:
+            messagebox.showinfo(labels["success"], labels["success_youtube_download"])
+            reset_download_gui()
+        else:
+            messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
+    else:
+        download_other_video(youtube_url)
 
 
-def download_update(urls):
-    update_dir = os.path.join(tempfile.gettempdir(), "ffmpegGUI_update")
-    if not os.path.exists(update_dir):
-        os.makedirs(update_dir)
+def sanitize_filename(value):
+    """
+    Bereinigt den Dateinamen von Sonderzeichen und kürzt ihn auf eine sichere Länge.
+    """
+    value = str(value)
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
+    value = re.sub(r'[-\s]+', '-', value)
+    return value[:32]  # Kürze auf 32 Zeichen, was für die meisten Dateisysteme sicher ist.
 
-    for url in urls:
-        local_filename = os.path.join(update_dir, url.split('/')[-1])
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            total_size = int(r.headers.get('content-length', 0))
-            with open(local_filename, 'wb') as f, tqdm(
-                desc=local_filename,
-                total=total_size,
-                unit='B',
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as bar:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-                    bar.update(len(chunk))
-
-    messagebox.showinfo("Update heruntergeladen", "Das Update wurde heruntergeladen. Bitte entpacken und installieren Sie es manuell.")
+def reset_download_gui():
+    url_entry.delete(0, tk.END)
+    progress['value'] = 0
 
 def add_flag_button(country_code, country_name, row, col, language_code):
     img_path = f"img/{country_code}.png"
@@ -785,11 +667,28 @@ def add_flag_button(country_code, country_name, row, col, language_code):
     button.image = flag_image
     button.grid(row=row, column=col, padx=5, pady=5)
 
-def reset_download_gui():
-    youtube_url_entry.delete(0, tk.END)
-    twitter_url_entry.delete(0, tk.END)
-    tiktok_url_entry.delete(0, tk.END)
-    progress['value'] = 0
+def display_logos():
+    logos = [
+        {"name": "YouTube", "url": "https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_Logo_2017.svg"},
+        {"name": "Twitter", "url": "https://upload.wikimedia.org/wikipedia/en/6/60/Twitter_Logo_as_of_2021.svg"},
+        {"name": "TikTok", "url": "https://upload.wikimedia.org/wikipedia/en/a/a9/TikTok_logo.svg"},
+        {"name": "VK", "url": "https://upload.wikimedia.org/wikipedia/commons/2/21/VK.com-logo.svg"},
+        {"name": "Bitchute", "url": "https://upload.wikimedia.org/wikipedia/en/2/24/BitChute_logo.svg"},
+        {"name": "Rumble", "url": "https://upload.wikimedia.org/wikipedia/en/thumb/7/7c/Rumble.com_logo.svg/1920px-Rumble.com_logo.svg.png"},
+        {"name": "Facebook", "url": "https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg"},
+        {"name": "Odysse", "url": "https://upload.wikimedia.org/wikipedia/commons/6/69/Odysee_logo.svg"},
+    ]
+
+    for logo in logos:
+        logo_path = f"img/{logo['name']}.png"
+        download_logo(logo['url'], logo_path)
+        img = Image.open(logo_path)
+        img = img.resize((100, 100), Image.ANTIALIAS)
+        logo_img = ImageTk.PhotoImage(img)
+
+        label = tk.Label(youtube_frame, image=logo_img)
+        label.image = logo_img  # Reference to keep the image displayed
+        label.grid(padx=5, pady=5)
 
 
 root = tk.Tk()
@@ -888,38 +787,29 @@ else:
     info_button = tk.Button(main_frame, text=labels["info"], command=show_video_info)
     info_button.grid(row=10, column=3, padx=(0, 5), pady=5, sticky="w")
 
-    youtube_url_label = tk.Label(youtube_frame, text=labels["youtube_url"])
-    youtube_url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-    youtube_url_entry = tk.Entry(youtube_frame, width=50)
-    youtube_url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
-    download_button = tk.Button(youtube_frame, text=labels["download"], command=download_youtube_video)
+    # Download Tab Widgets
+    # Define URL label
+    url_label = tk.Label(youtube_frame, text=labels["url"])
+    url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+    url_entry = tk.Entry(youtube_frame, width=50)
+    url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
+    download_button = tk.Button(youtube_frame, text=labels["download"], command=download_video)
     download_button.grid(row=0, column=2, padx=5, pady=5, sticky="e")
 
-    # Twitter Download
-    twitter_url_label = tk.Label(youtube_frame, text=labels["twitter_url"])
-    twitter_url_label.grid(row=1, column=0, padx=5, pady=5, sticky="w")
-    twitter_url_entry = tk.Entry(youtube_frame, width=50)
-    twitter_url_entry.grid(row=1, column=1, padx=5, pady=5, sticky="we")
-    twitter_download_button = tk.Button(youtube_frame, text=labels["download_twitter"], command=download_twitter_video_gui)
-    twitter_download_button.grid(row=1, column=2, padx=5, pady=5, sticky="e")
+    # Unterstützt Text
+    supported_label = tk.Label(youtube_frame, text="Supports: Youtube, Twitter, TikTok, VK, Bitchute, Rumble, Facebook, Odysse and more...")
+    supported_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5)
 
-    # TikTok Download
-    tiktok_url_label = tk.Label(youtube_frame, text=labels["tiktok_url"])
-    tiktok_url_label.grid(row=2, column=0, padx=5, pady=5, sticky="w")
-    tiktok_url_entry = tk.Entry(youtube_frame, width=50)
-    tiktok_url_entry.grid(row=2, column=1, padx=5, pady=5, sticky="we")
-    tiktok_download_button = tk.Button(youtube_frame, text=labels["download_tiktok"], command=download_tiktok_video_gui)
-    tiktok_download_button.grid(row=2, column=2, padx=5, pady=5, sticky="e")
-
+    # Fortschrittsbalken
     progress = ttk.Progressbar(youtube_frame, orient="horizontal", length=300, mode="determinate")
-    progress.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
-
+    progress.grid(row=2, column=0, columnspan=3, padx=5, pady=5)
 
     # Info Tab
     info_text = f"""ffmpegGUI Version {current_version}
     Author: blobb999
-    Dieses Programm verwendet ffmpeg für Video- und Audiooperationen.
-    Mehr Informationen finden Sie auf der offiziellen Projektseite."""
+    This program uses ffmpeg for video and audio operations.
+    More information can be found on the official project page."""
+
 
     info_label = tk.Label(info_frame, text=info_text, justify="left")
     info_label.pack(padx=10, pady=10)

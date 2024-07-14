@@ -52,7 +52,7 @@ mit ffmpeg bereitstellt. Es wurde mit tkinter entwickelt und bietet folgende Hau
 
 Falls ffmpeg, ffprobe, youtube-dl oder aria2 auf dem System nicht installiert sind, bietet das Tool 
 eine einfache Möglichkeit, diese Komponenten ins Programverzeichnis herunterzuladen und zu installieren.
-![Video-Download-ffmpegGUI](https://github.com/blobb999/ffmpeGUI/assets/89486466/57011d2e-a777-4589-8807-0928c2dee289)
+![2024-07-14 23_24_56-_IDLE Shell 3 11 5_](https://github.com/user-attachments/assets/4671a577-70a2-43ee-80aa-55a3942fb120)
 
 Anforderungen:
 
