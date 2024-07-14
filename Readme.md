@@ -39,7 +39,6 @@ mit ffmpeg bereitstellt. Es wurde mit tkinter entwickelt und bietet folgende Hau
 		youtube-dl herunter, wobei das Wasserzeichen automatisch entfernt wird.
 	
 	Download Kompatibiltät mit weiteren Videoplattformen: VK, Bitchute, Rumble, Facebook und Odysse. 
-		(Twitterfeld benutzen - ist etwas unschön im Moment, i know)
 
 	GUI-Sprache anpassen: Unterstützt Sprachen wie Deutsch, Spanisch, Englisch, Chinesisch, 
 		Russisch, Indisch, Japanisch, Arabisch, Portugiesisch, Koreanisch, Dänisch, 
