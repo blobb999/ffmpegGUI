@@ -2,7 +2,8 @@
 
 ffmpegGUI Video Tool
 
-Dieses Projekt ist eine Python-basierte GUI-Anwendung, die verschiedene Videobearbeitungsfunktionen mit ffmpeg bereitstellt. Es wurde mit tkinter entwickelt und bietet folgende Hauptfunktionen:
+Dieses Projekt ist eine Python-basierte GUI-Anwendung, die verschiedene Videobearbeitungsfunktionen 
+mit ffmpeg bereitstellt. Es wurde mit tkinter entwickelt und bietet folgende Hauptfunktionen:
 
 	Videokonvertierung: Ändern Sie das Format Ihrer Videodateien in verschiedene gängige 
 		Formate wie mp4, avi, mov, mkv, flv, wmv, webm und mpeg.
@@ -28,8 +29,8 @@ Dieses Projekt ist eine Python-basierte GUI-Anwendung, die verschiedene Videobea
 		Anfangs- und Endzeit.
 
 	YouTube-Download: Laden Sie YouTube-Videos mit Unterstützung von youtube-dl und aria2 herunter, 
-		um die beste Videoqualität zu erhalten. Es werden auch Videobeschreibung und Untertitel der
-		gewählten Sprachen heruntergeladen.
+		um die beste Videoqualität zu erhalten. Es werden auch Videobeschreibung und Untertitel
+		der gewählten Sprachen heruntergeladen.
 
 	Twitter-Download: Laden Sie Twitter-Videos mit Unterstützung vom Python Plugin yt_dlp 
 		als youtube-dl herunter.
@@ -37,7 +38,7 @@ Dieses Projekt ist eine Python-basierte GUI-Anwendung, die verschiedene Videobea
 	TikTok-Download: Laden Sie TikTok-Videos mit Unterstützung om Python Plugin yt_dlp  
 		youtube-dl herunter, wobei das Wasserzeichen automatisch entfernt wird.
 	
-	Download Kompatibiltät mit weiteren Videoplattformen: VK, Bitchute, Rumble und Odysse. 
+	Download Kompatibiltät mit weiteren Videoplattformen: VK, Bitchute, Rumble, Facebook und Odysse. 
 		(Twitterfeld benutzen - ist etwas unschön im Moment, i know)
 
 	GUI-Sprache anpassen: Unterstützt Sprachen wie Deutsch, Spanisch, Englisch, Chinesisch, 
@@ -49,7 +50,8 @@ Dieses Projekt ist eine Python-basierte GUI-Anwendung, die verschiedene Videobea
 	
 ![ffmpegGUI-Language](https://github.com/blobb999/ffmpeGUI/assets/89486466/ef30dca4-2063-4df6-a4d5-253b747a760b)
 
-Falls ffmpeg, ffprobe, youtube-dl oder aria2 auf dem System nicht installiert sind, bietet das Tool eine einfache Möglichkeit, diese Komponenten ins Programverzeichnis herunterzuladen und zu installieren.
+Falls ffmpeg, ffprobe, youtube-dl oder aria2 auf dem System nicht installiert sind, bietet das Tool 
+eine einfache Möglichkeit, diese Komponenten ins Programverzeichnis herunterzuladen und zu installieren.
 ![Video-Download-ffmpegGUI](https://github.com/blobb999/ffmpeGUI/assets/89486466/57011d2e-a777-4589-8807-0928c2dee289)
 
 Anforderungen:
