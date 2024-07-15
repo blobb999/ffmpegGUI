@@ -53,7 +53,9 @@ def change_language(language):
             "success": "No updates available",
             "check_update": "Check for updates",
             "info_tab": "Info",
-            "error": "Error"
+            "error": "Error",
+            "url": "URL",
+            "success_download": "Download erfolgreich: {filename}"
         },
         "es": {
             "source": "Archivo Fuente:",
@@ -105,7 +107,9 @@ def change_language(language):
             "update_aborted": "La actualización fue abortada.",
             "success": "No hay actualizaciones disponibles",
             "check_update": "Buscar actualizaciones",
-            "info_tab": "Información"
+            "info_tab": "Información",
+            "url": "URL",
+            "success_download": "Descarga exitosa: {filename}"
         },
         "de": {
             "source": "Quelldatei:",
@@ -160,7 +164,9 @@ def change_language(language):
             "info_tab": "Info",
             "check_update": "Auf Updates prüfen",
             "success": "Keine Updates verfügbar",
-            "error": "Fehler"
+            "error": "Fehler",
+            "url": "URL",
+            "success_download": "Download erfolgreich: {filename}"
         },
     "it": {
         "source": "File sorgente:",
@@ -212,7 +218,9 @@ def change_language(language):
         "update_aborted": "L'aggiornamento è stato annullato.",
         "info_tab": "Info",
         "check_update": "Controlla aggiornamenti",
-        "success": "Operazione completata con successo"
+        "success": "Operazione completata con successo",
+        "url": "URL",
+        "success_download": "Download riuscito: {filename}"        
     },
         "fr": {
             "source": "Fichier source:",
@@ -266,7 +274,9 @@ def change_language(language):
             "update_aborted": "La mise à jour a été annulée.",
             "success": "Pas de mises à jour disponibles",
             "check_update": "Vérifier les mises à jour",
-            "info_tab": "Information"
+            "info_tab": "Information",
+            "url": "URL",
+            "success_download": "Téléchargement réussi : {filename}"
         },
     "zh": {
         "source": "源文件:",
@@ -318,7 +328,9 @@ def change_language(language):
         "update_aborted": "更新已中止。",
         "info_tab": "信息",
         "check_update": "检查更新",
-        "success": "操作成功完成"
+        "success": "操作成功完成",
+        "url": "网址",
+        "success_download": "下载成功: {filename}"        
     },
     "ru": {
         "source": "Исходный файл:",
@@ -370,7 +382,9 @@ def change_language(language):
         "update_aborted": "Обновление было отменено.",
         "info_tab": "Информация",
         "check_update": "Проверить обновления",
-        "success": "Операция успешно завершена"
+        "success": "Операция успешно завершена",
+        "url": "URL",
+        "success_download": "Загрузка успешна: {filename}"
     },
     "hi": {
         "source": "स्रोत फ़ाइल:",
@@ -422,7 +436,9 @@ def change_language(language):
         "update_aborted": "अपडेट रद्द कर दिया गया था।",
         "info_tab": "जानकारी",
         "check_update": "अपडेट की जाँच करें",
-        "success": "ऑपरेशन सफलतापूर्वक पूरा हुआ"
+        "success": "ऑपरेशन सफलतापूर्वक पूरा हुआ",
+        "url": "URL",
+        "success_download": "डाउनलोड सफल: {filename}"
     },
     "ja": {
         "source": "ソースファイル:",
@@ -474,7 +490,9 @@ def change_language(language):
         "update_aborted": "更新が中止されました。",
         "info_tab": "情報",
         "check_update": "更新を確認する",
-        "success": "操作が正常に完了しました"
+        "success": "操作が正常に完了しました",
+        "url": "URL",
+        "success_download": "ダウンロード成功: {filename}"        
     },
     "ar": {
         "source": "ملف المصدر:",
@@ -526,7 +544,9 @@ def change_language(language):
         "update_aborted": "تم إلغاء التحديث.",
         "info_tab": "معلومات",
         "check_update": "تحقق من التحديثات",
-        "success": "اكتملت العملية بنجاح"
+        "success": "اكتملت العملية بنجاح",
+        "url": "عنوان URL",
+        "success_download": "تم التنزيل بنجاح: {filename}"        
     },
     "pt": {
         "source": "Arquivo Fonte:",
@@ -578,7 +598,9 @@ def change_language(language):
         "update_aborted": "A atualização foi abortada.",
         "info_tab": "Informação",
         "check_update": "Verificar atualizações",
-        "success": "Operação concluída com sucesso"
+        "success": "Operação concluída com sucesso",
+        "url": "عنوان URL",
+        "success_download": "تم التنزيل بنجاح: {filename}"
     },
     "ko": {
         "source": "소스 파일:",
@@ -630,7 +652,9 @@ def change_language(language):
         "update_aborted": "업데이트가 중단되었습니다.",
         "info_tab": "정보",
         "check_update": "업데이트 확인",
-        "success": "작업이 성공적으로 완료되었습니다"
+        "success": "작업이 성공적으로 완료되었습니다",
+        "url": "URL",
+        "success_download": "다운로드 성공: {filename}"
     },
     "da": {
         "source": "Kilde fil:",
@@ -682,7 +706,9 @@ def change_language(language):
         "update_aborted": "Opdateringen blev afbrudt.",
         "info_tab": "Info",
         "check_update": "Tjek for opdateringer",
-        "success": "Operationen blev gennemført med succes"
+        "success": "Operationen blev gennemført med succes",
+        "url": "URL",
+        "success_download": "Download lykkedes: {filename}"        
     },
     "nl": {
         "source": "Bronbestand:",
@@ -734,7 +760,9 @@ def change_language(language):
         "update_aborted": "De update is afgebroken.",
         "info_tab": "Informatie",
         "check_update": "Controleer op updates",
-        "success": "Bewerking succesvol voltooid"
+        "success": "Bewerking succesvol voltooid",
+        "url": "URL",
+        "success_download": "Download succesvol: {filename}"
     },
     "pl": {
         "source": "Plik źródłowy:",
@@ -786,7 +814,9 @@ def change_language(language):
         "update_aborted": "Aktualizacja została przerwana.",
         "info_tab": "Informacja",
         "check_update": "Sprawdź aktualizacje",
-        "success": "Operacja zakończona pomyślnie"
+        "success": "Operacja zakończona pomyślnie",
+        "url": "URL",
+        "success_download": "Pobieranie zakończone sukcesem: {filename}"
     },
     "no": {
         "source": "Kilde fil:",
@@ -838,7 +868,9 @@ def change_language(language):
         "update_aborted": "Oppdateringen ble avbrutt.",
         "info_tab": "Info",
         "check_update": "Sjekk etter oppdateringer",
-        "success": "Operasjonen ble fullført med suksess"
+        "success": "Operasjonen ble fullført med suksess",
+        "url": "URL",
+        "success_download": "Nedlasting vellykket: {filename}"
     },
     "fi": {
         "source": "Lähdetiedosto:",
@@ -890,7 +922,9 @@ def change_language(language):
         "update_aborted": "Päivitys keskeytettiin.",
         "info_tab": "Info",
         "check_update": "Tarkista päivitykset",
-        "success": "Toiminto suoritettiin onnistuneesti"
+        "success": "Toiminto suoritettiin onnistuneesti",
+        "url": "URL",
+        "success_download": "Lataus onnistui: {filename}"
     },
     "tr": {
         "source": "Kaynak Dosya:",
@@ -942,7 +976,9 @@ def change_language(language):
         "update_aborted": "Güncelleme iptal edildi.",
         "info_tab": "Bilgi",
         "check_update": "Güncellemeleri kontrol et",
-        "success": "İşlem başarıyla tamamlandı"
+        "success": "İşlem başarıyla tamamlandı",
+        "url": "URL",
+        "success_download": "İndirme başarılı: {filename}"
     },
     "sv": {
         "source": "Källfil:",
@@ -994,7 +1030,9 @@ def change_language(language):
         "update_aborted": "Uppdateringen avbröts.",
         "info_tab": "Information",
         "check_update": "Kontrollera uppdateringar",
-        "success": "Åtgärden genomfördes framgångsrikt"
+        "success": "Åtgärden genomfördes framgångsrikt",
+        "url": "URL",
+        "success_download": "Nedladdning lyckades: {filename}"
     },
     "el": {
         "source": "Αρχείο Πηγής:",
@@ -1046,7 +1084,9 @@ def change_language(language):
         "update_aborted": "Η ενημέρωση ακυρώθηκε.",
         "info_tab": "Πληροφορίες",
         "check_update": "Έλεγχος για ενημερώσεις",
-        "success": "Η λειτουργία ολοκληρώθηκε με επιτυχία"
+        "success": "Η λειτουργία ολοκληρώθηκε με επιτυχία",
+        "url": "URL",
+        "success_download": "Η λήψη ήταν επιτυχής: {filename}"
     },
     "he": {
         "source": "קובץ מקור:",
@@ -1098,7 +1138,9 @@ def change_language(language):
         "update_aborted": "העדכון בוטל.",
         "info_tab": "מידע",
         "check_update": "בדוק עדכונים",
-        "success": "הפעולה הושלמה בהצלחה"
+        "success": "הפעולה הושלמה בהצלחה",
+        "url": "כתובת URL",
+        "success_download": "ההורדה הצליחה: {filename}"
     },
     "hu": {
         "source": "Forrás fájl:",
@@ -1150,7 +1192,9 @@ def change_language(language):
         "update_aborted": "A frissítés megszakítva.",
         "info_tab": "Információ",
         "check_update": "Frissítések keresése",
-        "success": "A művelet sikeresen befejeződött"
+        "success": "A művelet sikeresen befejeződött",
+        "url": "URL",
+        "success_download": "Letöltés sikeres: {filename}"
     },
     "th": {
         "source": "ไฟล์ต้นทาง:",
@@ -1202,7 +1246,9 @@ def change_language(language):
         "update_aborted": "ยกเลิกการอัปเดตแล้ว",
         "info_tab": "ข้อมูล",
         "check_update": "ตรวจสอบการอัปเดต",
-        "success": "ดำเนินการสำเร็จ"
+        "success": "ดำเนินการสำเร็จ",
+        "url": "URL",
+        "success_download": "ดาวน์โหลดสำเร็จ: {filename}"
       },
         "es_ar": {
             "source": "Archivo Fuente:",
@@ -1256,7 +1302,9 @@ def change_language(language):
             "update_aborted": "La actualización fue abortada.",
             "success": "No hay actualizaciones disponibles",
             "check_update": "Buscar actualizaciones",
-            "info_tab": "Información"
+            "info_tab": "Información",
+            "url": "URL",
+            "success_download": "Descarga exitosa: {filename}"
         }
 }
 
