@@ -15,7 +15,7 @@ import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
 
-current_version = "v0.0.7-alpha"
+current_version = "v0.0.8-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -241,11 +241,14 @@ def run_ffmpeg_command(cmd):
 
 
 def select_source_file():
-    source_file = filedialog.askopenfilename()
-    source_entry.delete(0, tk.END)
-    source_entry.insert(0, source_file)
-    update_target_file()
-    update_segment_times()
+    source_file = filedialog.askopenfilename(initialdir=last_browse_path if 'last_browse_path' in globals() else "")
+    if source_file:
+        source_entry.delete(0, tk.END)
+        source_entry.insert(0, source_file)
+        update_target_file()
+        update_segment_times()
+        set_browse_button_path(os.path.dirname(source_file))
+
 
 def update_target_file():
     source_file = source_entry.get()
@@ -585,6 +588,37 @@ def download_video():
         download_other_video(url)
 
 
+def update_source_file_details():
+    source_file = source_entry.get()
+    if source_file:
+        update_segment_times()
+        set_browse_button_path(os.path.dirname(source_file))
+
+def set_browse_button_path(path):
+    global last_browse_path
+    last_browse_path = path
+
+def insert_downloaded_video_to_source(downloaded_file):
+    full_path = os.path.abspath(downloaded_file)
+    source_entry.delete(0, tk.END)
+    source_entry.insert(0, full_path)
+    update_target_file()
+    update_segment_times()
+    set_browse_button_path(os.path.dirname(full_path))
+
+
+def on_tab_change(event):
+    selected_tab = event.widget.nametowidget(event.widget.select())
+    root.update_idletasks()
+    extra_height = 40  # Noch mehr Platz im unteren Bereich
+    extra_width = 5  # Zusätzlicher Platz auf der rechten Seite
+    root.geometry(f"{selected_tab.winfo_reqwidth() + extra_width}x{selected_tab.winfo_reqheight() + extra_height}")
+    
+    # Aktualisiere die Videozeitlänge und den Pfad des Browse-Buttons, wenn zum Main TAB gewechselt wird
+    if selected_tab == main_frame:
+        update_source_file_details()
+
+
 def download_other_video(url):
     def progress_hook(d):
         if d['status'] == 'downloading':
@@ -626,6 +660,7 @@ def download_other_video(url):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             messagebox.showinfo(labels["success"], labels["success_download"].format(filename=sanitized_filename))
+            insert_downloaded_video_to_source(sanitized_filename)  # Einfügen des heruntergeladenen Videos in das Quelleneingabefeld
             reset_download_gui()
         except Exception as e:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
@@ -665,6 +700,7 @@ def download_youtube_video():
         returncode, _, stderr = run_ffmpeg_command(cmd_download)
         if returncode == 0:
             messagebox.showinfo(labels["success"], labels["success_youtube_download"])
+            insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))  # Einfügen des heruntergeladenen Videos in das Quelleneingabefeld
             reset_download_gui()
         else:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
@@ -718,6 +754,16 @@ def display_logos():
         label = tk.Label(youtube_frame, image=logo_img)
         label.image = logo_img  # Reference to keep the image displayed
         label.grid(padx=5, pady=5)
+
+
+def create_context_menu(entry_widget):
+    context_menu = tk.Menu(root, tearoff=0)
+    context_menu.add_command(label="Einfügen", command=lambda: entry_widget.event_generate("<<Paste>>"))
+
+    def show_context_menu(event):
+        context_menu.tk_popup(event.x_root, event.y_root)
+
+    entry_widget.bind("<Button-3>", show_context_menu)  # Bind right-click to show the context menu
 
 
 root = tk.Tk()
@@ -822,6 +868,7 @@ else:
     url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
     url_entry = tk.Entry(youtube_frame, width=50)
     url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
+    create_context_menu(url_entry)  # Kontextmenü für das URL-Eingabefeld hinzufügen
     download_button = tk.Button(youtube_frame, text=labels["download"], command=download_video)
     download_button.grid(row=0, column=2, padx=5, pady=5, sticky="e")
 
