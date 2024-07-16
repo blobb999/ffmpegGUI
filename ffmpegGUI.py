@@ -15,7 +15,7 @@ import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
 
-current_version = "v0.0.5-alpha"
+current_version = "v0.0.6-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
