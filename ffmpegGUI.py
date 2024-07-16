@@ -15,7 +15,7 @@ import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
 
-current_version = "v0.0.6-alpha"
+current_version = "v0.0.7-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -230,7 +230,7 @@ def check_ffmpeg_and_ffprobe():
 def run_ffmpeg_command(cmd):
     try:
         cmd[0] = os.path.join(bin_dir, cmd[0])
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
         stdout, stderr = process.communicate()
         if process.returncode != 0:
             messagebox.showerror("Fehler", f"Fehler bei der Ausführung von {cmd[0]}:\n{stderr}")
@@ -393,6 +393,38 @@ def extract_audio():
     else:
         messagebox.showerror(labels["error_extraction"], f"{labels['error_extraction']}\n{stderr}")
 
+def get_video_duration(source_file):
+    cmd = [os.path.join(bin_dir, "ffprobe"), "-v", "error", "-select_streams", "v:0", "-show_entries", 
+           "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", source_file]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
+    if result.returncode != 0:
+        messagebox.showerror("Fehler", f"Fehler beim Abrufen der Videodauer:\n{result.stderr}")
+        return None
+    try:
+        duration = float(result.stdout.strip())
+        return duration
+    except ValueError:
+        return None
+
+def get_keyframes_around_time(source_file, time, duration=6):
+    start_time = max(0, time - duration / 2)
+    cmd = [os.path.join(bin_dir, "ffprobe"), "-v", "error", "-select_streams", "v:0", "-show_entries", 
+           "frame=pkt_pts_time", "-read_intervals", f"{start_time}%+{duration}", "-of", "csv", source_file]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
+    if result.returncode != 0:
+        messagebox.showerror("Fehler", f"Fehler beim Abrufen der Keyframes:\n{result.stderr}")
+        return []
+    
+    keyframes = []
+    for line in result.stdout.splitlines():
+        if line.startswith("frame") and ",I," in line:
+            try:
+                keyframes.append(float(line.split(',')[1]))
+            except ValueError:
+                continue
+
+    return keyframes
+
 def split_video():
     source_file = source_entry.get()
     target_directory = os.path.dirname(source_file)
@@ -402,46 +434,43 @@ def split_video():
         messagebox.showerror("Fehler", "Bitte wählen Sie eine Quelldatei.")
         return
 
-    cmd_duration = [os.path.join(bin_dir, "ffprobe"), "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", source_file]
-    result = subprocess.run(cmd_duration, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    if result.returncode != 0:
-        messagebox.showerror("Fehler", f"Fehler beim Abrufen der Videodauer:\n{result.stderr}")
-        return
-
-    try:
-        total_duration = float(result.stdout.strip())
-    except ValueError:
+    total_duration = get_video_duration(source_file)
+    
+    if total_duration is None:
         messagebox.showerror("Fehler", "Ungültige Videodauer.")
         return
 
-    num_segments = int(total_duration // split_duration)
-    for i in range(num_segments):
-        start_time = i * split_duration
-        segment_file = os.path.join(target_directory, f"{os.path.splitext(os.path.basename(source_file))[0]}_part{i+1}.mp4")
+    # Find the first keyframe
+    keyframes_start = get_keyframes_around_time(source_file, 0, duration=6)
+    start_time = min(keyframes_start, default=0)
+
+    num_segments = 0
+
+    while start_time < total_duration:
+        end_time = start_time + split_duration
+
+        keyframes = get_keyframes_around_time(source_file, end_time, duration=6)
+        end_keyframe = max([kf for kf in keyframes if kf <= end_time], default=end_time)
+
+        segment_file = os.path.join(target_directory, f"{os.path.splitext(os.path.basename(source_file))[0]}_part{num_segments+1}.mp4")
         cmd = [
-            os.path.join(bin_dir, "ffmpeg"), "-y", "-i", source_file,
-            "-ss", str(start_time), "-t", str(split_duration),
+            os.path.join(bin_dir, "ffmpeg"), "-y", "-ss", str(start_time), "-i", source_file,
+            "-to", str(end_keyframe - start_time),
             "-c:a", "copy", "-c:v", "copy",
             segment_file
         ]
+
         returncode, _, stderr = run_ffmpeg_command(cmd)
         if returncode != 0:
             messagebox.showerror("Fehler", f"Fehler beim Splitten des Videos:\n{stderr}")
             return
 
-    if total_duration % split_duration != 0:
-        last_segment_file = os.path.join(target_directory, f"{os.path.splitext(os.path.basename(source_file))[0]}_part{num_segments+1}.mp4")
-        cmd_last = [
-            os.path.join(bin_dir, "ffmpeg"), "-y", "-i", source_file,
-            "-ss", str(num_segments * split_duration),
-            "-c:v", "copy", "-c:a", "copy", last_segment_file
-        ]
-        returncode, _, stderr = run_ffmpeg_command(cmd_last)
-        if returncode != 0:
-            messagebox.showerror(labels["error_split"], f"{labels['error_split']}:\n{stderr}")
-            return
+        # Update start_time for the next segment
+        start_time = end_keyframe
+        num_segments += 1
 
-    messagebox.showinfo(labels["success_video_split"], labels["success_video_split"].format(num_segments=num_segments+1))
+    messagebox.showinfo("Erfolg", f"Video erfolgreich in {num_segments} Segmente geteilt.")
+
 
 
 def show_supported_formats(parent):
