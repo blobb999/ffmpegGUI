@@ -507,9 +507,25 @@ def cut_segment():
         messagebox.showerror(labels["error"], labels["error_select_source_target"])
         return
 
+    # Convert start_time and end_time to seconds
+    def time_to_seconds(time_str):
+        h, m, s = map(float, time_str.split(':'))
+        return int(h * 3600 + m * 60 + s)
+    
+    start_time_sec = time_to_seconds(start_time)
+    end_time_sec = time_to_seconds(end_time)
+    
+    # Get keyframes around the start and end times
+    keyframes_start = get_keyframes_around_time(source_file, start_time_sec, duration=6)
+    start_keyframe = max([kf for kf in keyframes_start if kf <= start_time_sec], default=start_time_sec)
+    
+    keyframes_end = get_keyframes_around_time(source_file, end_time_sec, duration=6)
+    end_keyframe = max([kf for kf in keyframes_end if kf <= end_time_sec], default=end_time_sec)
+
     # Schneide das Segment aus dem Video
     cmd = [
-        "ffmpeg", "-y", "-i", source_file, "-ss", start_time, "-to", end_time,
+        "ffmpeg", "-y", "-ss", str(start_keyframe), "-i", source_file,
+        "-to", str(end_keyframe - start_keyframe),
         "-c", "copy", target_file
     ]
     returncode, _, stderr = run_ffmpeg_command(cmd)
@@ -518,6 +534,7 @@ def cut_segment():
         return
 
     messagebox.showinfo(labels["success"], labels["success_segment"])
+
 
 # Funktion, um youtube-dl und aria2c zu überprüfen und ggf. zu installieren
 def check_youtube_dl_and_aria2c():
