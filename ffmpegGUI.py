@@ -473,8 +473,7 @@ def split_video():
         num_segments += 1
 
     messagebox.showinfo("Erfolg", f"Video erfolgreich in {num_segments} Segmente geteilt.")
-
-
+    
 
 def show_supported_formats(parent):
     formats = ['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'mpeg']
@@ -544,7 +543,7 @@ def check_youtube_dl_and_aria2c():
 
         try:
             urllib.request.urlretrieve(url, download_path)
-            subprocess.run([download_path, "-U"], check=True, cwd=bin_dir)  # Aktualisieren Sie youtube-dl.exe nach dem Herunterladen im bin-Verzeichnis
+            subprocess.run([download_path, "-U"], check=True, cwd=bin_dir)  # Aktualisieren von youtube-dl.exe nach dem Herunterladen im bin-Verzeichnis
         except Exception as e:
             messagebox.showerror("Fehler", f"Fehler beim Download von youtube-dl:\n{e}")
 
@@ -585,7 +584,7 @@ def check_youtube_dl_and_aria2c():
     if not os.path.exists(os.path.join(bin_dir, "youtube-dl.exe")):
         download_and_install_youtube_dl()
     else:
-        subprocess.run([os.path.join(bin_dir, "youtube-dl.exe"), "-U"], check=True, cwd=bin_dir)  # Aktualisieren Sie youtube-dl.exe im bin-Verzeichnis
+        subprocess.run([os.path.join(bin_dir, "youtube-dl.exe"), "-U"], check=True, cwd=bin_dir)
 
     if not os.path.exists(os.path.join(bin_dir, "aria2c.exe")):
         download_and_install_aria2c()
@@ -689,7 +688,7 @@ def download_youtube_video():
         return
 
     if "youtube.com" in youtube_url or "youtu.be" in youtube_url:
-        # Verwenden Sie die youtube-dl.exe Binärdatei
+        # Verwenden von youtube-dl.exe
         cmd_info = [
             os.path.join(bin_dir, "youtube-dl.exe"), "--get-title", youtube_url
         ]
@@ -885,7 +884,7 @@ else:
     url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
     url_entry = tk.Entry(youtube_frame, width=50)
     url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
-    create_context_menu(url_entry)  # Kontextmenü für das URL-Eingabefeld hinzufügen
+    create_context_menu(url_entry)  # Kontextmenü für das URL-Eingabefeld
     download_button = tk.Button(youtube_frame, text=labels["download"], command=download_video)
     download_button.grid(row=0, column=2, padx=5, pady=5, sticky="e")
 
