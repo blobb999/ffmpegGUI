@@ -430,7 +430,7 @@ def get_keyframes_around_time(source_file, time, duration=6):
 def split_video():
     source_file = source_entry.get()
     target_directory = os.path.dirname(source_file)
-    split_duration = int(split_duration_entry.get()) if split_duration_entry.get().strip() else 139
+    split_duration = int(split_duration_entry.get()) if split_duration_entry.get().strip() else 135
 
     if not source_file:
         messagebox.showerror(labels["error"], "Please select a source file.")
@@ -818,7 +818,7 @@ else:
     split_duration_label.grid(row=5, column=0, padx=5, pady=5, sticky="w")
     split_duration_entry = tk.Entry(main_frame, width=10)
     split_duration_entry.grid(row=5, column=1, padx=(0, 5), pady=5, sticky="w")
-    split_duration_entry.insert(0, "139")
+    split_duration_entry.insert(0, "135")
     split_video_button = tk.Button(main_frame, text=labels["split_video"], command=lambda: split_video())
     split_video_button.grid(row=5, column=3, padx=(0, 5), pady=5, sticky="w")
 
