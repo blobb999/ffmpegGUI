@@ -62,3 +62,6 @@ Anforderungen:
     aria2: Wird automatisch heruntergeladen und im Programverzeichnis installiert, 
 		falls nicht vorhanden. Quelle: https://sourceforge.net/projects/aria2/
 
+	Kombilieren:
+		Bei "ImportError: DLL load failed while importing _cext:" (matplotlib) stell sicher, 
+		dass die msvc Library installiert ist mit: pip install msvc-runtime 
