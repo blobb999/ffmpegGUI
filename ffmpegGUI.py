@@ -1,3 +1,4 @@
+from PIL import Image, ImageTk
 import tkinter as tk 
 from tkinter import filedialog, messagebox, ttk
 import subprocess
@@ -14,8 +15,9 @@ import yt_dlp as youtube_dl
 import unicodedata  # Hinzugefügt für Unicode-Funktionalität
 from change_language import change_language
 from packaging import version
+from update import update_program, update_youtubedl
 
-current_version = "v0.0.8-alpha"
+current_version = "v0.0.9-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -34,18 +36,12 @@ def check_for_updates():
     latest_version_url = f"{repo_url}/releases/latest/download/version.txt"
     new_exe_url = f"{repo_url}/releases/latest/download/ffmpegGUI.exe"
 
-    # Update youtube-dl.exe without asking
     try:
-        subprocess.run([os.path.join(bin_dir, "youtube-dl.exe"), "-U"], check=True, cwd=bin_dir)
-    except Exception as e:
-        messagebox.showerror(labels["error"], f"Fehler beim Aktualisieren von youtube-dl.exe:\n{e}")
-
-    try:
-        with urllib.request.urlopen(latest_version_url) as response:
-            latest_version_info = response.read().decode("utf-8").strip()
-            latest_version_lines = latest_version_info.split("\n")
-            latest_version = latest_version_lines[0]
-            changes = "\n".join(latest_version_lines[1:])
+        response = urllib.request.urlopen(latest_version_url)
+        latest_version_info = response.read().decode("utf-8").strip()
+        latest_version_lines = latest_version_info.split("\n")
+        latest_version = latest_version_lines[0]
+        changes = "\n".join(latest_version_lines[1:])
 
         is_update_needed = compare_versions(current_version, latest_version)
 
@@ -75,6 +71,7 @@ def check_for_updates():
             messagebox.showinfo(labels["info"], labels["success"])
     except Exception as e:
         messagebox.showerror(labels["error"], f"{labels['error']}:\n{e}")
+
 
 def update_youtube_dl():
     try:
@@ -108,7 +105,7 @@ def update_labels(language):
     from_to_label.config(text=labels["from_to"])
     mirror_label.config(text=labels["mirror"])
     update_button.config(text=labels["check_update"])
-    url_label.config(text=labels["url"])  # Ensure URL label is updated
+    url_label.config(text=labels["url"])
 
     notebook.tab(main_frame, text=labels["main_tab"])
     notebook.tab(youtube_frame, text=labels["youtube_tab"])
@@ -124,7 +121,9 @@ if not os.path.exists(bin_dir):
 
 def move_to_bin(file):
     if os.path.exists(file):
-        shutil.move(file, os.path.join(bin_dir, os.path.basename(file)))
+        dest = os.path.join(bin_dir, os.path.basename(file))
+        if not os.path.exists(dest):
+            shutil.move(file, dest)
 
 def download_flag(country_code, save_path):
     urls = [
@@ -205,13 +204,12 @@ def check_ffmpeg_and_ffprobe():
         error_window.attributes('-topmost', False)
 
     try:
-        if os.path.exists("ffmpeg.exe"):
-            move_to_bin("ffmpeg.exe")
-        if os.path.exists("ffprobe.exe"):
-            move_to_bin("ffprobe.exe")
-
         ffmpeg_path = os.path.join(bin_dir, "ffmpeg.exe")
         ffprobe_path = os.path.join(bin_dir, "ffprobe.exe")
+
+        if not os.path.exists(ffmpeg_path) or not os.path.exists(ffprobe_path):
+            show_ffmpeg_error()
+            return False
 
         ffmpeg_result = subprocess.run([ffmpeg_path, "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         ffprobe_result = subprocess.run([ffprobe_path, "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -226,19 +224,17 @@ def check_ffmpeg_and_ffprobe():
 
     return True
 
-
 def run_ffmpeg_command(cmd):
     try:
-        cmd[0] = os.path.join(bin_dir, cmd[0])
+        cmd[0] = os.path.join(bin_dir, cmd[0])  # Ensure correct path
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
         stdout, stderr = process.communicate()
         if process.returncode != 0:
-            messagebox.showerror("Fehler", f"Fehler bei der Ausführung von {cmd[0]}:\n{stderr}")
+            messagebox.showerror(labels["error"], f"Fehler bei der Ausführung von {cmd[0]}:\n{stderr}")
         return process.returncode, stdout, stderr
     except FileNotFoundError:
         show_ffmpeg_error()
         return 1, "", f"{cmd[0]} not found"
-
 
 def select_source_file():
     source_file = filedialog.askopenfilename(initialdir=last_browse_path if 'last_browse_path' in globals() else "")
@@ -248,7 +244,6 @@ def select_source_file():
         update_target_file()
         update_segment_times()
         set_browse_button_path(os.path.dirname(source_file))
-
 
 def update_target_file():
     source_file = source_entry.get()
@@ -292,7 +287,6 @@ def convert():
     temp_video_file = "temp_video.mp4"
     temp_audio_file = "temp_audio.mp4"
 
-    # Video mit geänderter Geschwindigkeit und/oder Spiegelung
     video_filters = []
     if speed_var.get():
         video_filters.append(f"setpts={1/speed_factor}*PTS")
@@ -309,7 +303,6 @@ def convert():
     if returncode != 0:
         return
 
-    # Audio mit geänderter Geschwindigkeit
     cmd_audio = [
         "ffmpeg", "-y", "-i", source_file,
         "-filter:a", f"atempo={speed_factor}",
@@ -339,7 +332,6 @@ def convert():
             messagebox.showinfo(labels["success_conversion"], labels["success_conversion"])
         else:
             messagebox.showerror(labels["error_ffmpeg_command"], f"{labels['error_ffmpeg_command']}\n{stderr}")
-
 
 def repair_video():
     source_file = source_entry.get()
@@ -411,20 +403,27 @@ def get_video_duration(source_file):
 
 def get_keyframes_around_time(source_file, time, duration=6):
     start_time = max(0, time - duration / 2)
-    cmd = [os.path.join(bin_dir, "ffprobe"), "-v", "error", "-select_streams", "v:0", "-show_entries", 
-           "frame=pkt_pts_time", "-read_intervals", f"{start_time}%+{duration}", "-of", "csv", source_file]
+    end_time = start_time + duration
+    cmd = [
+        os.path.join(bin_dir, "ffprobe"),
+        "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "frame=pkt_pts_time",
+        "-read_intervals", f"{start_time}%+{duration}",
+        "-of", "csv=p=0",
+        source_file
+    ]
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
     if result.returncode != 0:
-        messagebox.showerror("Fehler", f"Fehler beim Abrufen der Keyframes:\n{result.stderr}")
+        messagebox.showerror(labels["error"], f"Error retrieving keyframes:\n{result.stderr}")
         return []
     
     keyframes = []
     for line in result.stdout.splitlines():
-        if line.startswith("frame") and ",I," in line:
-            try:
-                keyframes.append(float(line.split(',')[1]))
-            except ValueError:
-                continue
+        try:
+            keyframes.append(float(line))
+        except ValueError:
+            continue
 
     return keyframes
 
@@ -434,13 +433,13 @@ def split_video():
     split_duration = int(split_duration_entry.get()) if split_duration_entry.get().strip() else 139
 
     if not source_file:
-        messagebox.showerror("Fehler", "Bitte wählen Sie eine Quelldatei.")
+        messagebox.showerror(labels["error"], "Please select a source file.")
         return
 
     total_duration = get_video_duration(source_file)
     
     if total_duration is None:
-        messagebox.showerror("Fehler", "Ungültige Videodauer.")
+        messagebox.showerror(labels["error"], "Invalid video duration.")
         return
 
     # Find the first keyframe
@@ -465,15 +464,14 @@ def split_video():
 
         returncode, _, stderr = run_ffmpeg_command(cmd)
         if returncode != 0:
-            messagebox.showerror("Fehler", f"Fehler beim Splitten des Videos:\n{stderr}")
+            messagebox.showerror(labels["error"], f"Error splitting the video:\n{stderr}")
             return
 
         # Update start_time for the next segment
         start_time = end_keyframe
         num_segments += 1
 
-    messagebox.showinfo("Erfolg", f"Video erfolgreich in {num_segments} Segmente geteilt.")
-    
+    messagebox.showinfo(labels["success"], f"Video successfully split into {num_segments} segments.")
 
 def show_supported_formats(parent):
     formats = ['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'mpeg']
@@ -603,7 +601,6 @@ def download_video():
     else:
         download_other_video(url)
 
-
 def update_source_file_details():
     source_file = source_entry.get()
     if source_file:
@@ -667,8 +664,8 @@ def download_other_video(url):
         }
     }
 
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        try:
+    try:
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
             title = sanitize_filename(info_dict.get('title', 'video'))
             sanitized_filename = f'{title}.mp4'
@@ -676,10 +673,14 @@ def download_other_video(url):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             messagebox.showinfo(labels["success"], labels["success_download"].format(filename=sanitized_filename))
-            insert_downloaded_video_to_source(sanitized_filename)  # Einfügen des heruntergeladenen Videos in das Quelleneingabefeld
+            insert_downloaded_video_to_source(sanitized_filename)
             reset_download_gui()
-        except Exception as e:
-            messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
+    except youtube_dl.utils.DownloadError as e:
+        messagebox.showerror(labels["error"], f"{labels['error_download']}:\n{e}")
+    except Exception as e:
+        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
+
+
 
 def download_youtube_video():
     youtube_url = url_entry.get()
@@ -725,14 +726,12 @@ def download_youtube_video():
 
 
 def sanitize_filename(value):
-    """
-    Bereinigt den Dateinamen von Sonderzeichen und kürzt ihn auf eine sichere Länge.
-    """
     value = str(value)
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
     value = re.sub(r'[^\w\s-]', '', value).strip().lower()
     value = re.sub(r'[-\s]+', '-', value)
-    return value[:32]  # Kürze auf 32 Zeichen, was für die meisten Dateisysteme sicher ist.
+    return value[:64]
+
 
 def reset_download_gui():
     url_entry.delete(0, tk.END)
@@ -747,30 +746,6 @@ def add_flag_button(country_code, country_name, row, col, language_code):
     button = tk.Button(language_frame, image=flag_image, command=lambda: set_language(language_code))
     button.image = flag_image
     button.grid(row=row, column=col, padx=5, pady=5)
-
-def display_logos():
-    logos = [
-        {"name": "YouTube", "url": "https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_Logo_2017.svg"},
-        {"name": "Twitter", "url": "https://upload.wikimedia.org/wikipedia/en/6/60/Twitter_Logo_as_of_2021.svg"},
-        {"name": "TikTok", "url": "https://upload.wikimedia.org/wikipedia/en/a/a9/TikTok_logo.svg"},
-        {"name": "VK", "url": "https://upload.wikimedia.org/wikipedia/commons/2/21/VK.com-logo.svg"},
-        {"name": "Bitchute", "url": "https://upload.wikimedia.org/wikipedia/en/2/24/BitChute_logo.svg"},
-        {"name": "Rumble", "url": "https://upload.wikimedia.org/wikipedia/en/thumb/7/7c/Rumble.com_logo.svg/1920px-Rumble.com_logo.svg.png"},
-        {"name": "Facebook", "url": "https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg"},
-        {"name": "Odysse", "url": "https://upload.wikimedia.org/wikipedia/commons/6/69/Odysee_logo.svg"},
-    ]
-
-    for logo in logos:
-        logo_path = f"img/{logo['name']}.png"
-        download_logo(logo['url'], logo_path)
-        img = Image.open(logo_path)
-        img = img.resize((100, 100), Image.ANTIALIAS)
-        logo_img = ImageTk.PhotoImage(img)
-
-        label = tk.Label(youtube_frame, image=logo_img)
-        label.image = logo_img  # Reference to keep the image displayed
-        label.grid(padx=5, pady=5)
-
 
 def create_context_menu(entry_widget):
     context_menu = tk.Menu(root, tearoff=0)
@@ -813,14 +788,14 @@ else:
     source_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
     source_entry = tk.Entry(main_frame, width=50)
     source_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
-    browse_button = tk.Button(main_frame, text=labels["browse"], command=select_source_file)
+    browse_button = tk.Button(main_frame, text=labels["browse"], command=lambda: select_source_file())
     browse_button.grid(row=0, column=2, padx=5, pady=5, sticky="e")
 
     target_label = tk.Label(main_frame, text=labels["target"])
     target_label.grid(row=1, column=0, padx=5, pady=5, sticky="w")
     target_entry = tk.Entry(main_frame, width=50)
     target_entry.grid(row=1, column=1, padx=5, pady=5, sticky="we")
-    browse_button_target = tk.Button(main_frame, text=labels["browse"], command=select_target_file)
+    browse_button_target = tk.Button(main_frame, text=labels["browse"], command=lambda: select_target_file())
     browse_button_target.grid(row=1, column=2, padx=5, pady=5, sticky="e")
 
     show_supported_formats(main_frame)
@@ -844,7 +819,7 @@ else:
     split_duration_entry = tk.Entry(main_frame, width=10)
     split_duration_entry.grid(row=5, column=1, padx=(0, 5), pady=5, sticky="w")
     split_duration_entry.insert(0, "139")
-    split_video_button = tk.Button(main_frame, text=labels["split_video"], command=split_video)
+    split_video_button = tk.Button(main_frame, text=labels["split_video"], command=lambda: split_video())
     split_video_button.grid(row=5, column=3, padx=(0, 5), pady=5, sticky="w")
 
     audio_extract_label = tk.Label(main_frame, text=labels["audio_extract"])
@@ -853,7 +828,7 @@ else:
     audio_format_menu = ttk.Combobox(main_frame, textvariable=audio_format_var)
     audio_format_menu['values'] = ('mp3', 'wav', 'm4a')
     audio_format_menu.grid(row=6, column=1, padx=(0, 5), pady=5, sticky="we")
-    extract_audio_button = tk.Button(main_frame, text=labels["extract_audio"], command=extract_audio)
+    extract_audio_button = tk.Button(main_frame, text=labels["extract_audio"], command=lambda: extract_audio())
     extract_audio_button.grid(row=6, column=3, padx=(0, 5), pady=5, sticky="w")
 
     segment_extract_label = tk.Label(main_frame, text=labels["segment_extract"])
@@ -868,14 +843,14 @@ else:
     end_time_entry = tk.Entry(main_frame, width=10)
     end_time_entry.grid(row=7, column=2, padx=5, pady=5, sticky="w")
 
-    cut_segment_button = tk.Button(main_frame, text=labels["cut_segment"], command=cut_segment)
+    cut_segment_button = tk.Button(main_frame, text=labels["cut_segment"], command=lambda: cut_segment())
     cut_segment_button.grid(row=7, column=3, padx=(0, 5), pady=5, sticky="w")
 
-    repair_button = tk.Button(main_frame, text=labels["repair"], command=repair_video)
+    repair_button = tk.Button(main_frame, text=labels["repair"], command=lambda: repair_video())
     repair_button.grid(row=10, column=0, padx=5, pady=5, sticky="w")
-    convert_button = tk.Button(main_frame, text=labels["convert"], command=convert)
+    convert_button = tk.Button(main_frame, text=labels["convert"], command=lambda: convert())
     convert_button.grid(row=10, column=1, padx=5, pady=5, sticky="we")
-    info_button = tk.Button(main_frame, text=labels["info"], command=show_video_info)
+    info_button = tk.Button(main_frame, text=labels["info"], command=lambda: show_video_info())
     info_button.grid(row=10, column=3, padx=(0, 5), pady=5, sticky="w")
 
     # Download Tab Widgets
@@ -930,12 +905,7 @@ else:
     add_flag_button('hu', 'Hungary', 3, 3, 'hu')
     add_flag_button('ar', 'Argentina', 3, 4, 'es_ar')
 
-    def on_tab_change(event):
-        selected_tab = event.widget.nametowidget(event.widget.select())
-        root.update_idletasks()
-        extra_height = 40  # Noch mehr Platz im unteren Bereich
-        extra_width = 5  # Zusätzlicher Platz auf der rechten Seite
-        root.geometry(f"{selected_tab.winfo_reqwidth() + extra_width}x{selected_tab.winfo_reqheight() + extra_height}")
+
 
     notebook.bind("<<NotebookTabChanged>>", on_tab_change)
 
