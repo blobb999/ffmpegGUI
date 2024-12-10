@@ -65,3 +65,9 @@ Anforderungen:
 	Kombilieren:
 		Bei "ImportError: DLL load failed while importing _cext:" (matplotlib) stell sicher, 
 		dass die msvc Library installiert ist mit: pip install msvc-runtime 
+		
+		Python 3.10.6
+		
+		pyinstaller --clean --noconsole --onefile --exclude-module pandas --exclude-module matplotlib --exclude-module tensorflow --hidden-import=PIL._imaging ffmpegGUI.py
+		
+		

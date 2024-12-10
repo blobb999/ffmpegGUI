@@ -1,4 +1,7 @@
+#ffmpegGUI.py:
+
 from PIL import Image, ImageTk
+from PIL.Image import core as _imaging
 import tkinter as tk 
 from tkinter import filedialog, messagebox, ttk
 import subprocess
@@ -12,12 +15,12 @@ import requests
 import tempfile
 from tqdm import tqdm
 import yt_dlp as youtube_dl
-import unicodedata  # Hinzugefügt für Unicode-Funktionalität
+import unicodedata  # HinzugefÃ¼gt fÃ¼r Unicode-FunktionalitÃ¤t
 from change_language import change_language
 from packaging import version
 from update import update_program, update_youtubedl
 
-current_version = "v0.0.9-alpha"
+current_version = "v0.0.10-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -76,7 +79,7 @@ def check_for_updates():
 def update_youtube_dl():
     try:
         youtube_dl_path = os.path.join(bin_dir, "youtube-dl.exe")
-        subprocess.run([youtube_dl_path, "-U"], check=True, cwd=bin_dir)  # Update im bin-Verzeichnis ausführen
+        subprocess.run([youtube_dl_path, "-U"], check=True, cwd=bin_dir)  # Update im bin-Verzeichnis ausfÃ¼hren
         messagebox.showinfo(labels["info"], "youtube-dl.exe wurde erfolgreich aktualisiert.")
     except Exception as e:
         messagebox.showerror(labels["error"], f"Fehler beim Aktualisieren von youtube-dl.exe:\n{e}")
@@ -230,7 +233,7 @@ def run_ffmpeg_command(cmd):
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
         stdout, stderr = process.communicate()
         if process.returncode != 0:
-            messagebox.showerror(labels["error"], f"Fehler bei der Ausführung von {cmd[0]}:\n{stderr}")
+            messagebox.showerror(labels["error"], f"Fehler bei der AusfÃ¼hrung von {cmd[0]}:\n{stderr}")
         return process.returncode, stdout, stderr
     except FileNotFoundError:
         show_ffmpeg_error()
@@ -341,7 +344,7 @@ def repair_video():
         messagebox.showerror(labels["error_select_source_target"], labels["error_select_source_target"])
         return
 
-    # Reparatur des Videos durch Kopieren der Datenströme
+    # Reparatur des Videos durch Kopieren der DatenstrÃ¶me
     cmd = ["ffmpeg", "-y", "-i", source_file, "-c", "copy", target_file]
     returncode, _, stderr = run_ffmpeg_command(cmd)
     if returncode == 0:
@@ -364,7 +367,7 @@ def show_video_info():
     info_window.geometry("600x400")
 
     text = tk.Text(info_window, wrap=tk.WORD)
-    text.insert(tk.END, result.stderr)  # stderr enthält die Informationen
+    text.insert(tk.END, result.stderr)  # stderr enthÃ¤lt die Informationen
     text.pack(expand=True, fill=tk.BOTH)
 
 
@@ -533,17 +536,40 @@ def cut_segment():
     messagebox.showinfo(labels["success"], labels["success_segment"])
 
 
-# Funktion, um youtube-dl und aria2c zu überprüfen und ggf. zu installieren
 def check_youtube_dl_and_aria2c():
     def download_and_install_youtube_dl():
-        url = "https://github.com/ytdl-org/ytdl-nightly/releases/download/2024.07.03/youtube-dl.exe"
-        download_path = os.path.join(bin_dir, "youtube-dl.exe")
+        # URL fÃ¼r die yt-dlp Version
+        url = "https://github.com/yt-dlp/yt-dlp-master-builds/releases/download/2024.08.01.000109/yt-dlp.exe"
+        download_path = os.path.join(bin_dir, "youtube-dl.exe")  # Als youtube-dl.exe speichern
 
         try:
+            print("Lade yt-dlp herunter...")
             urllib.request.urlretrieve(url, download_path)
-            subprocess.run([download_path, "-U"], check=True, cwd=bin_dir)  # Aktualisieren von youtube-dl.exe nach dem Herunterladen im bin-Verzeichnis
+            # Marker-Datei erstellen
+            with open(os.path.join(bin_dir, "youtube-dl.marker"), "w") as marker_file:
+                marker_file.write("yt-dlp\n")
+            print(f"yt-dlp wurde erfolgreich heruntergeladen und als youtube-dl.exe gespeichert unter: {download_path}")
         except Exception as e:
-            messagebox.showerror("Fehler", f"Fehler beim Download von youtube-dl:\n{e}")
+            messagebox.showerror("Fehler", f"Fehler beim Herunterladen von yt-dlp:\n{e}")
+
+    def is_yt_dlp():
+        marker_path = os.path.join(bin_dir, "youtube-dl.marker")
+        if os.path.exists(marker_path):
+            with open(marker_path, "r") as marker_file:
+                return "yt-dlp" in marker_file.read()
+        else:
+            # PrÃ¼fe die Version der exe
+            try:
+                result = subprocess.run(
+                    [os.path.join(bin_dir, "youtube-dl.exe"), "--version"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                # Wenn der Name "yt-dlp" in der Ausgabe enthalten ist, ist es die neue Version
+                return "yt-dlp" in result.stdout.lower()
+            except Exception:
+                return False
 
     def download_and_install_aria2c():
         url = "https://altushost-swe.dl.sourceforge.net/project/aria2/stable/aria2-1.19.0/aria2-1.19.0-win-64bit-build1.zip?viasf=1"
@@ -552,6 +578,7 @@ def check_youtube_dl_and_aria2c():
 
         try:
             # Download aria2
+            print("Lade aria2 herunter...")
             urllib.request.urlretrieve(url, download_path)
 
             # Extract the zip file
@@ -572,22 +599,26 @@ def check_youtube_dl_and_aria2c():
             # Clean up
             os.remove(download_path)
             shutil.rmtree(install_path)
-
+            print("aria2 wurde erfolgreich installiert.")
         except Exception as e:
             messagebox.showerror("Fehler", f"Fehler beim Download und Installation von aria2:\n{e}")
 
+    # Sicherstellen, dass der bin-Ordner existiert
     if not os.path.exists(bin_dir):
         os.makedirs(bin_dir)
 
-    if not os.path.exists(os.path.join(bin_dir, "youtube-dl.exe")):
+    # PrÃ¼fen und ggf. yt-dlp herunterladen und als youtube-dl.exe speichern
+    if not is_yt_dlp():
+        print("Aktuelle youtube-dl.exe ist nicht yt-dlp. Aktualisiere...")
         download_and_install_youtube_dl()
     else:
-        subprocess.run([os.path.join(bin_dir, "youtube-dl.exe"), "-U"], check=True, cwd=bin_dir)
+        print("yt-dlp ist bereits vorhanden. Keine Aktualisierung erforderlich.")
 
+    # PrÃ¼fen und ggf. aria2c herunterladen
     if not os.path.exists(os.path.join(bin_dir, "aria2c.exe")):
         download_and_install_aria2c()
 
-# Prüfen und Aktualisieren von youtube-dl.exe beim Start der Anwendung
+# PrÃ¼fen und Aktualisieren von youtube-dl.exe beim Start der Anwendung
 check_youtube_dl_and_aria2c()
 
 def download_video():
@@ -624,10 +655,10 @@ def on_tab_change(event):
     selected_tab = event.widget.nametowidget(event.widget.select())
     root.update_idletasks()
     extra_height = 40  # Noch mehr Platz im unteren Bereich
-    extra_width = 5  # Zusätzlicher Platz auf der rechten Seite
+    extra_width = 5  # ZusÃ¤tzlicher Platz auf der rechten Seite
     root.geometry(f"{selected_tab.winfo_reqwidth() + extra_width}x{selected_tab.winfo_reqheight() + extra_height}")
     
-    # Aktualisiere die Videozeitlänge und den Pfad des Browse-Buttons, wenn zum Main TAB gewechselt wird
+    # Aktualisiere die VideozeitlÃ¤nge und den Pfad des Browse-Buttons, wenn zum Main TAB gewechselt wird
     if selected_tab == main_frame:
         update_source_file_details()
 
@@ -701,13 +732,11 @@ def download_youtube_video():
 
         title = sanitize_filename(result.stdout.strip())
 
-        # Verwende den bereinigten Titel für den Dateinamen
+        # Verwende den bereinigten Titel fÃ¼r den Dateinamen
         output_template = f"{title}.%(ext)s"
 
         cmd_download = [
             os.path.join(bin_dir, "youtube-dl.exe"),
-            "--external-downloader", os.path.join(bin_dir, "aria2c.exe"),
-            "--external-downloader-args", "-x 16 -s 16 -k 1M --file-allocation=none",
             "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
             "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
             "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
@@ -717,7 +746,7 @@ def download_youtube_video():
         returncode, _, stderr = run_ffmpeg_command(cmd_download)
         if returncode == 0:
             messagebox.showinfo(labels["success"], labels["success_youtube_download"])
-            insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))  # Einfügen des heruntergeladenen Videos in das Quelleneingabefeld
+            insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))  # EinfÃ¼gen des heruntergeladenen Videos in das Quelleneingabefeld
             reset_download_gui()
         else:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
@@ -742,14 +771,14 @@ def add_flag_button(country_code, country_name, row, col, language_code):
     if not os.path.exists(img_path):
         download_flag(country_code, img_path)
     
-    flag_image = tk.PhotoImage(file=img_path).subsample(2, 2)  # Verkleinern auf die Hälfte der ursprünglichen Größe
+    flag_image = tk.PhotoImage(file=img_path).subsample(2, 2)  # Verkleinern auf die HÃ¤lfte der ursprÃ¼nglichen GrÃ¶ÃŸe
     button = tk.Button(language_frame, image=flag_image, command=lambda: set_language(language_code))
     button.image = flag_image
     button.grid(row=row, column=col, padx=5, pady=5)
 
 def create_context_menu(entry_widget):
     context_menu = tk.Menu(root, tearoff=0)
-    context_menu.add_command(label="Einfügen", command=lambda: entry_widget.event_generate("<<Paste>>"))
+    context_menu.add_command(label="EinfÃ¼gen", command=lambda: entry_widget.event_generate("<<Paste>>"))
 
     def show_context_menu(event):
         context_menu.tk_popup(event.x_root, event.y_root)
@@ -760,9 +789,9 @@ def create_context_menu(entry_widget):
 root = tk.Tk()
 root.title("ffmpegGUI")
 
-# Überprüfen, ob ffmpeg und ffprobe verfügbar sind
+# ÃœberprÃ¼fen, ob ffmpeg und ffprobe verfÃ¼gbar sind
 if not check_ffmpeg_and_ffprobe():
-    root.mainloop()  # Die GUI läuft weiter, um die Fehlermeldung anzuzeigen
+    root.mainloop()  # Die GUI lÃ¤uft weiter, um die Fehlermeldung anzuzeigen
 else:
     notebook = ttk.Notebook(root)
     notebook.pack(expand=True, fill="both")
@@ -859,11 +888,11 @@ else:
     url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
     url_entry = tk.Entry(youtube_frame, width=50)
     url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
-    create_context_menu(url_entry)  # Kontextmenü für das URL-Eingabefeld
+    create_context_menu(url_entry)  # KontextmenÃ¼ fÃ¼r das URL-Eingabefeld
     download_button = tk.Button(youtube_frame, text=labels["download"], command=download_video)
     download_button.grid(row=0, column=2, padx=5, pady=5, sticky="e")
 
-    # Unterstützt Text
+    # UnterstÃ¼tzt Text
     supported_label = tk.Label(youtube_frame, text="Supports: Youtube, Twitter, TikTok, VK, Bitchute, Rumble, Facebook, Odysse and more...")
     supported_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5)
 
