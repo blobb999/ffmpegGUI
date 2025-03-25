@@ -20,7 +20,7 @@ from change_language import change_language
 from packaging import version
 from update import update_program, update_youtubedl
 
-current_version = "v0.0.10-alpha"
+current_version = "v0.0.11-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -720,9 +720,9 @@ def download_youtube_video():
         return
 
     if "youtube.com" in youtube_url or "youtu.be" in youtube_url:
-        # Verwenden von youtube-dl.exe
+        # Verwenden von youtube-dl.exe mit -vU Flag zum Update
         cmd_info = [
-            os.path.join(bin_dir, "youtube-dl.exe"), "--get-title", youtube_url
+            os.path.join(bin_dir, "youtube-dl.exe"), "-vU", "--get-title", youtube_url
         ]
 
         result = subprocess.run(cmd_info, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=bin_dir)
@@ -737,6 +737,7 @@ def download_youtube_video():
 
         cmd_download = [
             os.path.join(bin_dir, "youtube-dl.exe"),
+            "-vU",
             "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
             "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
             "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
@@ -746,13 +747,12 @@ def download_youtube_video():
         returncode, _, stderr = run_ffmpeg_command(cmd_download)
         if returncode == 0:
             messagebox.showinfo(labels["success"], labels["success_youtube_download"])
-            insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))  # Einfügen des heruntergeladenen Videos in das Quelleneingabefeld
+            insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))
             reset_download_gui()
         else:
             messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
     else:
         download_other_video(youtube_url)
-
 
 def sanitize_filename(value):
     value = str(value)
