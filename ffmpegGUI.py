@@ -20,7 +20,7 @@ from change_language import change_language
 from packaging import version
 from update import update_program, update_youtubedl
 
-current_version = "v0.0.11-alpha"
+current_version = "v0.0.12-alpha"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -230,14 +230,22 @@ def check_ffmpeg_and_ffprobe():
 def run_ffmpeg_command(cmd):
     try:
         cmd[0] = os.path.join(bin_dir, cmd[0])  # Ensure correct path
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8',
+            errors='replace'  # Ungültige Bytefolgen ersetzen
+        )
         stdout, stderr = process.communicate()
         if process.returncode != 0:
-            messagebox.showerror(labels["error"], f"Fehler bei der AusfÃ¼hrung von {cmd[0]}:\n{stderr}")
+            messagebox.showerror(labels["error"], f"Fehler bei der Ausführung von {cmd[0]}:\n{stderr}")
         return process.returncode, stdout, stderr
     except FileNotFoundError:
         show_ffmpeg_error()
         return 1, "", f"{cmd[0]} not found"
+
 
 def select_source_file():
     source_file = filedialog.askopenfilename(initialdir=last_browse_path if 'last_browse_path' in globals() else "")
@@ -626,9 +634,9 @@ def download_video():
     if not url:
         messagebox.showerror(labels["error"], labels["error_no_url"])
         return
-
+    # Wenn es sich um eine YouTube-URL handelt, benutze die YouTube-spezifische Funktion
     if "youtube.com" in url or "youtu.be" in url:
-        download_youtube_video()
+        download_youtube_video(url)
     else:
         download_other_video(url)
 
@@ -664,6 +672,7 @@ def on_tab_change(event):
 
 
 def download_other_video(url):
+    # Hier kommen z. B. TikTok und andere Anbieter rein – ohne den "-vU"-Parameter
     def progress_hook(d):
         if d['status'] == 'downloading':
             total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
@@ -688,6 +697,7 @@ def download_other_video(url):
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9'
         },
+        # TikTok-spezifischer Parameter zum Entfernen des Wasserzeichens
         'extractor_args': {
             'tiktok': {
                 'skip_watermark': ['1']
@@ -711,48 +721,35 @@ def download_other_video(url):
     except Exception as e:
         messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
 
-
-
-def download_youtube_video():
-    youtube_url = url_entry.get()
-    if not youtube_url:
-        messagebox.showerror(labels["error"], labels["error_no_url"])
+def download_youtube_video(youtube_url):
+    # Für YouTube ist der "-vU"-Parameter wichtig, damit yt-dlp (als youtube-dl.exe) sich ggf. aktualisiert
+    cmd_info = [
+        os.path.join(bin_dir, "youtube-dl.exe"), "-vU", "--get-title", youtube_url
+    ]
+    result = subprocess.run(cmd_info, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=bin_dir)
+    if result.returncode != 0:
+        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{result.stderr}")
         return
 
-    if "youtube.com" in youtube_url or "youtu.be" in youtube_url:
-        # Verwenden von youtube-dl.exe mit -vU Flag zum Update
-        cmd_info = [
-            os.path.join(bin_dir, "youtube-dl.exe"), "-vU", "--get-title", youtube_url
-        ]
+    title = sanitize_filename(result.stdout.strip())
+    output_template = f"{title}.%(ext)s"
 
-        result = subprocess.run(cmd_info, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=bin_dir)
-        if result.returncode != 0:
-            messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{result.stderr}")
-            return
-
-        title = sanitize_filename(result.stdout.strip())
-
-        # Verwende den bereinigten Titel für den Dateinamen
-        output_template = f"{title}.%(ext)s"
-
-        cmd_download = [
-            os.path.join(bin_dir, "youtube-dl.exe"),
-            "-vU",
-            "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
-            "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
-            "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
-            "--restrict-filenames", "--output", output_template, youtube_url
-        ]
-
-        returncode, _, stderr = run_ffmpeg_command(cmd_download)
-        if returncode == 0:
-            messagebox.showinfo(labels["success"], labels["success_youtube_download"])
-            insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))
-            reset_download_gui()
-        else:
-            messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
+    cmd_download = [
+        os.path.join(bin_dir, "youtube-dl.exe"),
+        "-vU",  # Nur für YouTube!
+        "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
+        "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
+        "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
+        "--restrict-filenames", "--output", output_template, youtube_url
+    ]
+    returncode, _, stderr = run_ffmpeg_command(cmd_download)
+    if returncode == 0:
+        messagebox.showinfo(labels["success"], labels["success_youtube_download"])
+        insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))
+        reset_download_gui()
     else:
-        download_other_video(youtube_url)
+        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
+
 
 def sanitize_filename(value):
     value = str(value)
