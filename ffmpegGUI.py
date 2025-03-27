@@ -1,8 +1,7 @@
 #ffmpegGUI.py:
 
 from PIL import Image, ImageTk
-from PIL.Image import core as _imaging
-import tkinter as tk 
+import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import subprocess
 import os
@@ -11,16 +10,17 @@ import re
 import urllib.request
 import zipfile
 import shutil
-import requests
 import tempfile
-from tqdm import tqdm
-import yt_dlp as youtube_dl
-import unicodedata  # Hinzugefügt für Unicode-Funktionalität
+import logging
+import unicodedata
 from change_language import change_language
 from packaging import version
 from update import update_program, update_youtubedl
+import yt_dlp as youtube_dl
+import threading
+import queue
 
-current_version = "v0.0.12-alpha"
+current_version = "v0.0.1-beta"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -636,7 +636,7 @@ def download_video():
         return
     # Wenn es sich um eine YouTube-URL handelt, benutze die YouTube-spezifische Funktion
     if "youtube.com" in url or "youtu.be" in url:
-        download_youtube_video(url)
+        download_youtube_video(url)  # Falls vorhanden, ansonsten entfernen
     else:
         download_other_video(url)
 
@@ -670,17 +670,56 @@ def on_tab_change(event):
     if selected_tab == main_frame:
         update_source_file_details()
 
-
 def download_other_video(url):
-    # Hier kommen z. B. TikTok und andere Anbieter rein – ohne den "-vU"-Parameter
+    import os
+    import logging
+    import tkinter.messagebox as messagebox
+    from yt_dlp import YoutubeDL
+
+    # Queue für die Kommunikation zwischen Threads
+    progress_queue = queue.Queue()
+
     def progress_hook(d):
         if d['status'] == 'downloading':
             total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
             downloaded_bytes = d.get('downloaded_bytes')
             if total_bytes is not None and downloaded_bytes is not None:
-                progress['maximum'] = total_bytes
-                progress['value'] = downloaded_bytes
-                root.update_idletasks()
+                # Fortschritt in die Queue schreiben
+                progress_queue.put(('progress', downloaded_bytes, total_bytes))
+        elif d['status'] == 'finished':
+            progress_queue.put(('finished', d.get('filename')))
+
+    def download_thread(url, opts, queue):
+        try:
+            with YoutubeDL(opts) as ydl:
+                logger.debug(f"Starting extraction and download for URL: {url}")
+                info_dict = ydl.extract_info(url, download=False)  # Erst Info extrahieren
+                title = sanitize_filename(info_dict.get('title', 'video'))
+                sanitized_filename = f'{title}.mp4'
+                opts['outtmpl'] = sanitized_filename
+                with YoutubeDL(opts) as ydl:
+                    ydl.download([url])  # Direktes Downloaden
+                if os.path.exists(sanitized_filename):
+                    with open(sanitized_filename, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read(1024)
+                        if '<html' in content.lower():
+                            logger.error(f"Downloaded file is HTML: {content}")
+                            queue.put(('error', "Downloaded an HTML page instead of a video"))
+                        else:
+                            queue.put(('success', sanitized_filename))
+                else:
+                    logger.error("Download file not found")
+                    queue.put(('error', "Download failed: File not created"))
+        except youtube_dl.utils.DownloadError as e:
+            logger.error(f"DownloadError: {e}")
+            queue.put(('error', f"{labels['error_download']}:\n{e}"))
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            queue.put(('error', f"Unexpected error:\n{e}"))
+
+    # Logging einrichten
+    logging.basicConfig(filename='download.log', level=logging.DEBUG, format='%(asctime)s - %(message)s')
+    logger = logging.getLogger()
 
     ydl_opts = {
         'progress_hooks': [progress_hook],
@@ -693,11 +732,11 @@ def download_other_video(url):
         }],
         'no_warnings': True,
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, wie Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9'
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.tiktok.com/'
         },
-        # TikTok-spezifischer Parameter zum Entfernen des Wasserzeichens
         'extractor_args': {
             'tiktok': {
                 'skip_watermark': ['1']
@@ -705,50 +744,35 @@ def download_other_video(url):
         }
     }
 
-    try:
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False)
-            title = sanitize_filename(info_dict.get('title', 'video'))
-            sanitized_filename = f'{title}.mp4'
-            ydl_opts['outtmpl'] = sanitized_filename
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-            messagebox.showinfo(labels["success"], labels["success_download"].format(filename=sanitized_filename))
-            insert_downloaded_video_to_source(sanitized_filename)
-            reset_download_gui()
-    except youtube_dl.utils.DownloadError as e:
-        messagebox.showerror(labels["error"], f"{labels['error_download']}:\n{e}")
-    except Exception as e:
-        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{e}")
+    # Thread starten
+    download_thread_instance = threading.Thread(target=download_thread, args=(url, ydl_opts, progress_queue))
+    download_thread_instance.daemon = True  # Thread wird mit dem Hauptprogramm beendet
+    download_thread_instance.start()
 
-def download_youtube_video(youtube_url):
-    # Für YouTube ist der "-vU"-Parameter wichtig, damit yt-dlp (als youtube-dl.exe) sich ggf. aktualisiert
-    cmd_info = [
-        os.path.join(bin_dir, "youtube-dl.exe"), "-vU", "--get-title", youtube_url
-    ]
-    result = subprocess.run(cmd_info, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=bin_dir)
-    if result.returncode != 0:
-        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{result.stderr}")
-        return
+    # Fortschritt und Ergebnisse im Hauptthread verarbeiten
+    def check_queue():
+        try:
+            while True:
+                msg = progress_queue.get_nowait()
+                if msg[0] == 'progress':
+                    _, downloaded_bytes, total_bytes = msg
+                    progress['maximum'] = total_bytes
+                    progress['value'] = downloaded_bytes
+                elif msg[0] == 'success':
+                    _, filename = msg
+                    messagebox.showinfo(labels["success"], labels["success_download"].format(filename=filename))
+                    insert_downloaded_video_to_source(filename)
+                    reset_download_gui()
+                elif msg[0] == 'error':
+                    _, error_msg = msg
+                    messagebox.showerror(labels["error"], error_msg)
+                elif msg[0] == 'finished':
+                    pass  # Kann für zusätzliche Logik genutzt werden
+        except queue.Empty:
+            pass
+        root.after(100, check_queue)  # Nach 100 ms erneut prüfen
 
-    title = sanitize_filename(result.stdout.strip())
-    output_template = f"{title}.%(ext)s"
-
-    cmd_download = [
-        os.path.join(bin_dir, "youtube-dl.exe"),
-        "-vU",  # Nur für YouTube!
-        "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
-        "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
-        "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
-        "--restrict-filenames", "--output", output_template, youtube_url
-    ]
-    returncode, _, stderr = run_ffmpeg_command(cmd_download)
-    if returncode == 0:
-        messagebox.showinfo(labels["success"], labels["success_youtube_download"])
-        insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))
-        reset_download_gui()
-    else:
-        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
+    check_queue()  # Initialer Aufruf
 
 
 def sanitize_filename(value):
@@ -930,7 +954,6 @@ else:
     add_flag_button('tr', 'Turkey', 3, 2, 'tr')
     add_flag_button('hu', 'Hungary', 3, 3, 'hu')
     add_flag_button('ar', 'Argentina', 3, 4, 'es_ar')
-
 
 
     notebook.bind("<<NotebookTabChanged>>", on_tab_change)
