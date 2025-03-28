@@ -1,6 +1,5 @@
 #ffmpegGUI.py:
 
-from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import subprocess
@@ -15,12 +14,17 @@ import logging
 import unicodedata
 from change_language import change_language
 from packaging import version
-from update import update_program, update_youtubedl
 import yt_dlp as youtube_dl
 import threading
 import queue
+import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-current_version = "v0.0.1-beta"
+current_version = "v0.0.15-beta"
 
 def compare_versions(v1, v2):
     return version.parse(v1) < version.parse(v2)
@@ -629,6 +633,77 @@ def check_youtube_dl_and_aria2c():
 # Prüfen und Aktualisieren von youtube-dl.exe beim Start der Anwendung
 check_youtube_dl_and_aria2c()
 
+def resolve_url(url):
+    logger = logging.getLogger()
+    try:
+        # Erste Methode: HTTP-Weiterleitung mit requests
+        response = requests.get(url, allow_redirects=True, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+        })
+        if response.url != url and "cloudatacdn" in response.url:
+            logger.debug(f"Resolved via requests: {response.url}")
+            return response.url
+
+        # Zweite Methode: Selenium für dynamischen Inhalt
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--disable-gpu")
+        driver = webdriver.Chrome(options=chrome_options)
+        
+        driver.get(url)
+        
+        # Warte auf das Laden des Iframes oder der Video-URL (max. 30 Sekunden)
+        try:
+            WebDriverWait(driver, 30).until(
+                lambda driver: "cloudatacdn" in driver.page_source or driver.find_elements(By.TAG_NAME, "iframe")
+            )
+            
+            # Prüfe, ob ein Iframe vorhanden ist
+            iframes = driver.find_elements(By.TAG_NAME, "iframe")
+            for iframe in iframes:
+                src = iframe.get_attribute("src")
+                if src and "/e/" in src:
+                    # Wechsel in den Iframe
+                    driver.switch_to.frame(iframe)
+                    WebDriverWait(driver, 10).until(
+                        lambda driver: "cloudatacdn" in driver.page_source
+                    )
+                    page_source = driver.page_source
+                    match = re.search(r'https://[a-z0-9]+\.cloudatacdn\.com/[^\s"]+token=[^\s"&]+', page_source)
+                    if match:
+                        video_url = match.group(0)
+                        logger.debug(f"Resolved via Selenium iframe: {video_url}")
+                        driver.quit()
+                        return video_url
+                    driver.switch_to.default_content()
+
+            # Suche im Haupt-Dokument nach der Video-URL
+            page_source = driver.page_source
+            match = re.search(r'https://[a-z0-9]+\.cloudatacdn\.com/[^\s"]+token=[^\s"&]+', page_source)
+            if match:
+                video_url = match.group(0)
+                logger.debug(f"Resolved via Selenium HTML: {video_url}")
+                driver.quit()
+                return video_url
+
+            # Fallback: Suche nach <video>-Tag
+            video_element = driver.find_element(By.TAG_NAME, "video")
+            video_url = video_element.get_attribute("src")
+            if video_url and video_url.startswith("http"):
+                logger.debug(f"Resolved via Selenium video tag: {video_url}")
+                driver.quit()
+                return video_url
+        
+        except Exception as e:
+            logger.debug(f"Selenium step failed: {e}")
+        
+        driver.quit()
+        raise Exception("No valid video URL found")
+    
+    except Exception as e:
+        logger.error(f"Failed to resolve URL {url}: {e}")
+        return url
+
 def download_video():
     url = url_entry.get()
     if not url:
@@ -670,13 +745,37 @@ def on_tab_change(event):
     if selected_tab == main_frame:
         update_source_file_details()
 
-def download_other_video(url):
-    import os
-    import logging
-    import tkinter.messagebox as messagebox
-    from yt_dlp import YoutubeDL
+def download_youtube_video(youtube_url):
+    # Für YouTube ist der "-vU"-Parameter wichtig, damit yt-dlp (als youtube-dl.exe) sich ggf. aktualisiert
+    cmd_info = [
+        os.path.join(bin_dir, "youtube-dl.exe"), "-vU", "--get-title", youtube_url
+    ]
+    result = subprocess.run(cmd_info, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=bin_dir)
+    if result.returncode != 0:
+        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{result.stderr}")
+        return
 
-    # Queue für die Kommunikation zwischen Threads
+    title = sanitize_filename(result.stdout.strip())
+    output_template = f"{title}.%(ext)s"
+
+    cmd_download = [
+        os.path.join(bin_dir, "youtube-dl.exe"),
+        "-vU",  # Nur für YouTube!
+        "--no-check-certificate", "--write-auto-sub", "--sub-lang", selected_language, "--sub-format", "vtt",
+        "--youtube-skip-dash-manifest", "--write-description", "--ignore-errors", "--no-call-home", "--console-title",
+        "--add-metadata", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
+        "--restrict-filenames", "--output", output_template, youtube_url
+    ]
+    returncode, _, stderr = run_ffmpeg_command(cmd_download)
+    if returncode == 0:
+        messagebox.showinfo(labels["success"], labels["success_youtube_download"])
+        insert_downloaded_video_to_source(os.path.abspath(f"{title}.mp4"))
+        reset_download_gui()
+    else:
+        messagebox.showerror(labels["error"], f"{labels['error_ffmpeg_command']}:\n{stderr}")
+
+
+def download_other_video(url):
     progress_queue = queue.Queue()
 
     def progress_hook(d):
@@ -684,27 +783,40 @@ def download_other_video(url):
             total_bytes = d.get('total_bytes') or d.get('total_bytes_estimate')
             downloaded_bytes = d.get('downloaded_bytes')
             if total_bytes is not None and downloaded_bytes is not None:
-                # Fortschritt in die Queue schreiben
                 progress_queue.put(('progress', downloaded_bytes, total_bytes))
         elif d['status'] == 'finished':
             progress_queue.put(('finished', d.get('filename')))
 
-    def download_thread(url, opts, queue):
+    def download_thread(url, opts, queue, use_resolver=False):
+        logger = logging.getLogger()
         try:
-            with YoutubeDL(opts) as ydl:
-                logger.debug(f"Starting extraction and download for URL: {url}")
-                info_dict = ydl.extract_info(url, download=False)  # Erst Info extrahieren
+            # Wenn use_resolver True ist, löse die URL auf
+            target_url = resolve_url(url) if use_resolver else url
+            logger.debug(f"Using URL: {target_url}")
+
+            with youtube_dl.YoutubeDL(opts) as ydl:
+                logger.debug(f"Starting extraction and download for URL: {target_url}")
+                info_dict = ydl.extract_info(target_url, download=False)
+                if not info_dict:
+                    raise youtube_dl.utils.DownloadError("Could not extract video information")
+
                 title = sanitize_filename(info_dict.get('title', 'video'))
                 sanitized_filename = f'{title}.mp4'
                 opts['outtmpl'] = sanitized_filename
-                with YoutubeDL(opts) as ydl:
-                    ydl.download([url])  # Direktes Downloaden
+                with youtube_dl.YoutubeDL(opts) as ydl:
+                    ydl.download([target_url])
+
                 if os.path.exists(sanitized_filename):
                     with open(sanitized_filename, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read(1024)
                         if '<html' in content.lower():
                             logger.error(f"Downloaded file is HTML: {content}")
                             queue.put(('error', "Downloaded an HTML page instead of a video"))
+                            # Wenn Resolver noch nicht genutzt wurde, als Fallback versuchen
+                            if not use_resolver:
+                                logger.debug("Retrying with URL resolver...")
+                                download_thread(url, opts.copy(), queue, use_resolver=True)
+                            return
                         else:
                             queue.put(('success', sanitized_filename))
                 else:
@@ -712,14 +824,17 @@ def download_other_video(url):
                     queue.put(('error', "Download failed: File not created"))
         except youtube_dl.utils.DownloadError as e:
             logger.error(f"DownloadError: {e}")
-            queue.put(('error', f"{labels['error_download']}:\n{e}"))
+            # Wenn der direkte Versuch fehlschlägt und Resolver noch nicht genutzt wurde, Fallback
+            if not use_resolver:
+                logger.debug("Direct URL failed, retrying with URL resolver...")
+                download_thread(url, opts.copy(), queue, use_resolver=True)
+            else:
+                queue.put(('error', f"Download failed even with resolver: {str(e)}"))
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
-            queue.put(('error', f"Unexpected error:\n{e}"))
+            queue.put(('error', f"Unexpected error: {str(e)}"))
 
-    # Logging einrichten
     logging.basicConfig(filename='download.log', level=logging.DEBUG, format='%(asctime)s - %(message)s')
-    logger = logging.getLogger()
 
     ydl_opts = {
         'progress_hooks': [progress_hook],
@@ -735,21 +850,15 @@ def download_other_video(url):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://www.tiktok.com/'
-        },
-        'extractor_args': {
-            'tiktok': {
-                'skip_watermark': ['1']
-            }
+            'Referer': 'https://do7go.com/'
         }
     }
 
-    # Thread starten
-    download_thread_instance = threading.Thread(target=download_thread, args=(url, ydl_opts, progress_queue))
-    download_thread_instance.daemon = True  # Thread wird mit dem Hauptprogramm beendet
+    # Starte den Download-Thread mit der direkten URL
+    download_thread_instance = threading.Thread(target=download_thread, args=(url, ydl_opts, progress_queue, False))
+    download_thread_instance.daemon = True
     download_thread_instance.start()
 
-    # Fortschritt und Ergebnisse im Hauptthread verarbeiten
     def check_queue():
         try:
             while True:
@@ -767,13 +876,12 @@ def download_other_video(url):
                     _, error_msg = msg
                     messagebox.showerror(labels["error"], error_msg)
                 elif msg[0] == 'finished':
-                    pass  # Kann für zusätzliche Logik genutzt werden
+                    pass
         except queue.Empty:
             pass
-        root.after(100, check_queue)  # Nach 100 ms erneut prüfen
+        root.after(100, check_queue)
 
-    check_queue()  # Initialer Aufruf
-
+    check_queue()
 
 def sanitize_filename(value):
     value = str(value)
@@ -954,6 +1062,7 @@ else:
     add_flag_button('tr', 'Turkey', 3, 2, 'tr')
     add_flag_button('hu', 'Hungary', 3, 3, 'hu')
     add_flag_button('ar', 'Argentina', 3, 4, 'es_ar')
+
 
 
     notebook.bind("<<NotebookTabChanged>>", on_tab_change)
